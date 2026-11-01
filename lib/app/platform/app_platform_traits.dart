@@ -22,8 +22,11 @@ class AppPlatformTraits {
   /// 桌面形态平台。
   bool get isDesktop => isMacOS || isWindows || isLinux;
 
-  /// 本地文件系统：Web 无法直接访问；其余平台可用。
-  bool get supportsFileSystem => !isWeb;
+  /// 本地文件系统：Web 与无法识别的平台不允许调用原生路径接口。
+  bool get supportsFileSystem => !isWeb && kind != AppPlatformKind.unknown;
+
+  /// 图片选择：标准插件覆盖七个目标平台中的六个；OHOS 需单独接入实现。
+  bool get supportsImagePicker => !isOhos && kind != AppPlatformKind.unknown;
 
   /// SQLite：移动端使用 sqflite 插件、桌面使用 ffi、Web 使用 ffi web。
   /// 未知平台没有可用的 databaseFactory，返回 false。
@@ -32,8 +35,8 @@ class AppPlatformTraits {
   /// 内嵌 WebView：Android/iOS/macOS 有插件实现；桌面其余平台与 Web 降级。
   bool get supportsWebView => isAndroid || isIOS || isMacOS;
 
-  /// 原生 Socket（局域网聊天）：仅 io 平台。
-  bool get supportsSocket => !isWeb;
+  /// 原生 Socket（局域网聊天）：仅已识别的 io 平台。
+  bool get supportsSocket => !isWeb && kind != AppPlatformKind.unknown;
 
   /// 原生 toast：fluttertoast 仅声明 Android/iOS/Web；桌面与鸿蒙降级 SnackBar。
   bool get supportsNativeToast => isAndroid || isIOS || isWeb;

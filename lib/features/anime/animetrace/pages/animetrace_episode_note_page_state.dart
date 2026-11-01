@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dashboard/app/platform/app_platform.dart';
 import 'package:dashboard/features/anime/animetrace/animetrace_note_image.dart';
 import 'package:dashboard/features/anime/animetrace/pages/animetrace_episode_note_page.dart';
 import 'package:dashboard/features/anime/animetrace/store/animetrace_image_store.dart';
@@ -95,6 +96,12 @@ class AnimeTraceEpisodeNotePageState extends State<AnimeTraceEpisodeNotePage> {
   }
 
   Future<void> _addImage() async {
+    if (!AppPlatform.supportsImagePicker || !AppPlatform.supportsFileSystem) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('当前平台暂不支持添加本地图片')));
+      return;
+    }
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked == null || !mounted) return;
     setState(() => _busy = true);

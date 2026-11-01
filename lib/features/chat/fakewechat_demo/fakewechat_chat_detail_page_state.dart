@@ -1,3 +1,4 @@
+import 'package:dashboard/app/platform/app_platform.dart';
 import 'package:dashboard/features/chat/fakewechat_demo/fakewechat_chat_ai.dart';
 import 'package:dashboard/features/chat/fakewechat_demo/fakewechat_chat_detail_page.dart';
 import 'package:dashboard/features/chat/fakewechat_demo/fakewechat_control_panel.dart';
@@ -119,6 +120,13 @@ class FakeWechatChatDetailPageState extends State<FakeWechatChatDetailPage> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    if (!AppPlatform.supportsImagePicker) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('当前平台暂不支持选择图片')));
+      return;
+    }
     try {
       final XFile? picked = await ImagePicker().pickImage(source: source);
       if (picked == null || !mounted) {

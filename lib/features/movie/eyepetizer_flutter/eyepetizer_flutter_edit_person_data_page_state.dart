@@ -208,7 +208,7 @@ class EyepetizerFlutterEditPersonDataPageState
       ),
     );
     if (source == null) return;
-    if (!AppPlatform.supportsFileSystem) {
+    if (!AppPlatform.supportsFileSystem || !AppPlatform.supportsImagePicker) {
       // Web 上 image_picker 返回 blob 路径，无法作为本地文件上传。
       await AppToast.show(msg: '当前平台暂不支持上传图片');
       return;

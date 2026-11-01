@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dashboard/app/platform/app_platform.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Retains flutter-im's local camera/gallery selection, without inventing
@@ -10,6 +11,9 @@ class ChatImageSelection {
   final ImagePicker _picker;
 
   Future<Uint8List?> select(ImageSource source) async {
+    if (!AppPlatform.supportsImagePicker) {
+      throw UnsupportedError('当前平台不支持选择图片');
+    }
     final image = await _picker.pickImage(
       source: source,
       maxWidth: 1920,

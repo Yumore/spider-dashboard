@@ -1,4 +1,36 @@
-# 2026-10-18 跨平台兼容改造（Web / Windows / macOS / Linux / 鸿蒙）
+# 跨平台兼容改造与发布打包（2026-11-01）
+
+## 2026-11-01 打包脚本与兼容补充
+
+新增统一发布入口 `tool/package.dart`，并提供 `tool/package.sh`（macOS/Linux）和 `tool/package.ps1`（Windows）包装脚本。标准 Flutter 目标为 Android APK、iOS IPA、macOS `.app`、Windows Release 目录、Linux bundle 目录和 Web 静态目录；脚本逐目标检查宿主系统、Flutter/Dart 版本和预期产物。Windows 桌面构建需在 Windows，Linux 需在 Linux，iOS/macOS 需在 macOS；Android 和 Web 可在标准 Flutter 支持的主机上构建。
+
+统一用法：
+
+```sh
+./tool/package.sh web
+./tool/package.sh android
+./tool/package.sh ios
+./tool/package.sh macos
+./tool/package.sh windows
+./tool/package.sh linux
+./tool/package.sh ohos
+```
+
+Windows 使用 `tool/package.ps1 <目标>`；也可在工程根目录运行 `dart tool/package.dart <目标>`。传入 `--dry-run` 仅显示命令，不检查工具链或启动构建。标准 SDK 可通过 `FLUTTER_BIN` 指定。
+
+目标机器仍需安装相应原生工具链：Android SDK/签名配置、iOS/macOS 的 Xcode、Windows 的 Visual Studio C++ 桌面工具、Linux 的 clang/CMake/Ninja/GTK 开发库。脚本检查宿主系统和 Flutter/Dart 版本，原生 SDK、证书和签名错误由 Flutter/Xcode/DevEco 构建工具报告。
+
+鸿蒙使用独立目标 `ohos`：设置 `OHOS_FLUTTER_BIN` 指向 OpenHarmony 适配版 Flutter。首次配置可执行 `dart tool/package.dart setup-ohos`，脚本只在尚无 `ohos/` 时调用 `flutter create --platforms=ohos .`，不会覆盖已有平台壳。工程当前最低要求 Flutter 3.32 / Dart 3.8，因此旧版 OHOS SDK 不能用于本工程。HAP 构建还要求 DevEco/OpenHarmony SDK、签名设置和各原生插件的 OHOS 实现；脚本不伪造插件适配或签名。
+
+平台能力层新增图片选择能力：标准 Android、iOS、macOS、Windows、Linux、Web 使用 `image_picker`；OHOS 和未知平台在调用插件前返回不支持提示。未知平台同时不再宣称文件系统和 Socket 可用。Web、桌面和鸿蒙原有的 WebView、媒体、文件系统及 toast 降级继续由 `AppPlatformTraits` 管理。
+
+本轮本机发现 `/opt/harmonyos` 为 Flutter 3.7.12-ohos-1.0.3 / Dart 2.19.6，且本机未发现 DevEco Studio、`ohos/` 平台壳、`hdc`、`ohpm` 或 `hvigor`，因此没有生成 OHOS 壳或构建 HAP。Windows 和 Linux 包也未在 macOS 上构建。发布命令以 Flutter 官方各平台构建目标为基础，OHOS 使用 OpenHarmony Flutter 分支的 `flutter build hap --release`。
+
+验证记录：`dart analyze tool/package.dart` 无问题；`bash -n tool/package.sh` 通过；七个平台的 `--dry-run` 命令映射和 OHOS 初始化命令均通过。当前 Pub 缓存缺少 `image_picker` 等依赖，应用层定向 analyze 无法完成；未运行测试，也未实际构建或签名任何平台包。PowerShell 解析器本机不可用，因此 `.ps1` 仅做了人工审查。
+
+## 历史兼容改造（2026-10-18）
+
+以下盘点、实施记录和验证结果描述 2026-10-18 当时的工作，不代表本轮重新构建或设备验收。
 
 ## 需求
 
@@ -135,25 +167,9 @@
 3. 若 Web 端 SQLite worker/wasm 未能加载（文件缺失、隐私模式禁用 IndexedDB），启动不会崩溃，但依赖 `ComicHistoryProvider`/`ComicDownloadProvider` 的旧版页面会抛空值错误；此时仅内容中心与各模块页可用。
 4. 未做设备级 UI 走查（按 AGENTS 约定不主动构建 APK）；桌面/鸿蒙只做到"代码与依赖就绪 + 本机可验证部分验证"。
 
-## 各平台构建命令
+## 各平台打包入口
 
-```bash
-# Web（必须带 --no-wasm-dry-run，否则 wasm dry-run 会让构建耗时数倍）
-flutter build web --release --no-wasm-dry-run
-
-# macOS（需 CocoaPods 或 Swift Package Manager + Xcode 命令行工具）
-flutter build macos --release
-
-# Windows（Windows 主机 + Visual Studio "Desktop development with C++"）
-flutter build windows --release
-
-# Linux（需 clang cmake ninja-build pkg-config libgtk-3-dev libsqlite3-dev）
-flutter build linux --release
-
-# 鸿蒙：需先安装支持 Dart ≥3.8 的 Flutter OHOS 分支，然后
-#   flutter create --platforms=ohos .
-#   flutter build ohos --release
-```
+请使用上方 `tool/package.dart` 或对应 shell/PowerShell 包装脚本。脚本执行后保留 Flutter 的标准输出目录：Android `build/app/outputs/flutter-apk/`、iOS `build/ios/ipa/`、macOS `build/macos/Build/Products/Release/`、Windows `build/windows/`、Linux `build/linux/`、Web `build/web/`、OHOS `ohos/entry/build/default/outputs/`。
 
 ## 独立审查与修复（2026-10-18）
 

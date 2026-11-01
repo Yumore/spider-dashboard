@@ -39,6 +39,7 @@ abstract final class AppPlatform {
   static bool get isDesktop => _traits.isDesktop;
 
   static bool get supportsFileSystem => _traits.supportsFileSystem;
+  static bool get supportsImagePicker => _traits.supportsImagePicker;
   static bool get supportsSqlite => _traits.supportsSqlite;
   static bool get supportsWebView => _traits.supportsWebView;
   static bool get supportsSocket => _traits.supportsSocket;
