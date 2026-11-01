@@ -1,6 +1,7 @@
 import 'package:dashboard/app/platform/app_capability.dart';
 import 'package:dashboard/features/shared/ui/content_entry_section.dart';
 import 'package:dashboard/features/anime/animeone/animeone_module_page.dart';
+import 'package:dashboard/features/anime/kazumi_entry.dart';
 import 'package:dashboard/features/anime/animetrace/animetrace_page.dart';
 import 'package:dashboard/features/anime/takoplay/tako_play_search_page.dart';
 import 'package:dashboard/features/anime/tsdm/tsdm_api_urls.dart';
@@ -16,6 +17,15 @@ final List<ContentEntrySection> animeEntryCatalog = [
     title: '动漫站点',
     description: '在线番剧、论坛与以图搜番',
     entries: [
+      ContentEntry(
+        id: 'kazumi-webdav',
+        title: 'Kazumi · 规则番剧与 WebDAV',
+        subtitle: 'XPath 源、番剧收藏、WebDAV 同步、字幕与 DLNA',
+        icon: Icons.video_library_outlined,
+        accent: ContentAccents.anime,
+        tooltip: 'Kazumi WebDAV',
+        builder: (_) => const KazumiEmbeddedPage(),
+      ),
       ContentEntry(
         id: 'animeone',
         title: 'AnimeOne 番剧',

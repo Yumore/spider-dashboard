@@ -1,0 +1,70 @@
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
+import 'package:get/get.dart';
+import 'package:simple_live_tv_app/app/constant.dart';
+import 'package:simple_live_tv_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_tv_app/app/sites.dart';
+import 'package:simple_live_tv_app/modules/category/category_controller.dart';
+import 'package:simple_live_tv_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_tv_app/modules/multi_room/multi_room_models.dart';
+import 'package:simple_live_tv_app/routes/route_path.dart';
+import 'package:simple_live_tv_app/services/bilibili_account_service.dart';
+
+/// APP页面跳转封装
+/// * 需要参数的页面都应使用此类
+/// * 如不需要参数，可以使用Get.toNamed
+class AppNavigator {
+  /// 跳转至直播间
+  static void toLiveRoomDetail(
+      {required Site site, required String roomId}) async {
+    if (site.id == Constant.kBiliBili &&
+        !BiliBiliAccountService.instance.logined.value &&
+        AppSettingsController.instance.bilibiliLoginTip.value) {
+      await toBiliBiliLogin();
+      if (!BiliBiliAccountService.instance.logined.value) {
+        SmartDialog.showToast("未完成登录");
+        return;
+      }
+    }
+
+    if (Get.isRegistered<LiveRoomController>()) {
+      try {
+        final controller = Get.find<LiveRoomController>();
+        controller.resetRoom(site, roomId);
+        if (Get.currentRoute != RoutePath.kLiveRoomDetail) {
+          Get.toNamed(RoutePath.kLiveRoomDetail, arguments: site, parameters: {
+            "roomId": roomId,
+          });
+        }
+        return;
+      } catch (_) {}
+    }
+
+    Get.toNamed(RoutePath.kLiveRoomDetail, arguments: site, parameters: {
+      "roomId": roomId,
+    });
+  }
+
+  static Future<dynamic> toMultiRoom(List<MultiRoomItem> rooms) {
+    return Get.toNamed(
+          RoutePath.kMultiRoom,
+          arguments: rooms,
+        ) ??
+        Future.value();
+  }
+
+  /// 跳转至哔哩哔哩登录
+  static Future toBiliBiliLogin() async {
+    await Get.toNamed(RoutePath.kBiliBiliQRLogin);
+  }
+
+  /// 跳转至斗鱼登录
+  static Future toDouyuLogin() async {
+    await Get.toNamed(RoutePath.kDouyuQRLogin);
+  }
+
+  /// 跳转至分类详情
+  static void toCategoryDetail(
+      {required Site site, required LiveSubCategoryExt category}) {
+    Get.toNamed(RoutePath.kCategoryDetail, arguments: [site, category]);
+  }
+}

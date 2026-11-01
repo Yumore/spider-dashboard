@@ -3,18 +3,32 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audio_service_win
   battery_plus
+  bonsoir_windows
   connectivity_plus
+  dynamic_color
+  ffmpeg_kit_extended_flutter
+  ffmpeg_kit_flutter_new_min_gpl
   file_selector_windows
+  flutter_inappwebview_windows
+  flutter_volume_controller
+  flutter_webrtc
   media_kit_libs_windows_video
   media_kit_video
+  nsd_windows
+  permission_handler_windows
   screen_brightness_windows
   share_plus
   url_launcher_windows
+  volume_controller
+  webview_windows
+  window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   jni
+  sherpa_onnx_windows
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

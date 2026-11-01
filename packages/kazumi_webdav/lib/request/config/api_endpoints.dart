@@ -1,0 +1,163 @@
+import 'package:flutter/services.dart' show appBuildName, appBuildNumber;
+
+class ApiEndpoints {
+  /// 当前版本
+  static const String version = appBuildName ?? '0.0.0';
+
+  /// 当前构建号（pubspec `version:` 里 `+` 后面的部分）
+  static final int buildNumber = int.tryParse(appBuildNumber ?? '') ?? 0;
+
+  /// 本仓库（修改版自己发布 APK 的地方）
+  static const String ownRepoUrl = 'https://github.com/kelstna/Kazumi-WebDAV';
+
+  /// 本仓库 Release 页面
+  static const String ownRepoReleasesUrl = '$ownRepoUrl/releases';
+
+  /// 应用更新清单，按顺序回退：
+  /// 1) raw.githubusercontent（更新最快，偶尔被污染）
+  /// 2) jsDelivr 镜像（稳定，按 @main 缓存，可能滞后半天）
+  /// 3) github.com 的 raw 跳转（前两个都失败时兜底）
+  static const List<String> updateManifestUrls = [
+    'https://raw.githubusercontent.com/kelstna/Kazumi-WebDAV/main/update.json',
+    'https://cdn.jsdelivr.net/gh/kelstna/Kazumi-WebDAV@main/update.json',
+    'https://github.com/kelstna/Kazumi-WebDAV/raw/main/update.json',
+  ];
+
+  /// 规则API级别
+  static const int apiLevel = 9;
+
+  /// 项目主页
+  static const String projectUrl = "https://kazumi.app/";
+
+  /// Github 项目主页
+  static const String sourceUrl = "https://github.com/Predidit/Kazumi";
+
+  /// 图标作者
+  static const String iconUrl = "https://www.pixiv.net/users/66219277";
+
+  /// 规则仓库
+  static const String pluginShop =
+      'https://raw.githubusercontent.com/Predidit/KazumiRules/main/';
+
+  /// 规则仓库镜像
+  static const String pluginShopMirror =
+      'https://raw.gitcode.com/gh_mirrors/ka/KazumiRules/raw/main/';
+
+  /// 在线升级
+  static const String latestApp =
+      'https://api.github.com/repos/Predidit/Kazumi/releases/latest';
+
+  /// Bangumi 镜像测试后端
+  static const String bangumiMirrorDomain = 'https://api.kazumi.fyi';
+
+  /// Kazumi 镜像后端应用更新
+  static const String latestAppMirror =
+      '$bangumiMirrorDomain/kazumi/v1/app/latest';
+
+  /// 弹弹官网
+  static const String dandanIndex = 'https://www.dandanplay.com/';
+
+  /// Bangumi 官网
+  static const String bangumiIndex = 'https://bangumi.tv/';
+
+  /// bangumi API
+  static const String bangumiAPIDomain = 'https://api.bgm.tv';
+
+  /// Bangumi 鉴权 API
+  static const String bangumiAuthAPIMirrorDomain = 'https://api.bgmapi.com';
+
+  /// Telegram 群组
+  static const String telegramGroup = 'https://t.me/kazumi_app';
+
+  /// 番剧信息
+  static const String bangumiInfoByID = '/v0/subjects/{0}';
+
+  /// 条目关联信息
+  static const String bangumiRelationsByID = '/v0/subjects/{0}/subjects';
+
+  /// 条目搜索
+  static const String bangumiRankSearch =
+      '/v0/search/subjects?limit={0}&offset={1}';
+
+  /// 从条目ID获取角色信息
+  static const String bangumiCharacterByID = '/v0/subjects/{0}/characters';
+
+  /// 从条目ID获取工作人员信息
+  static const String bangumiStaffByID = '/v0/subjects/{0}/persons';
+
+  /// 从条目ID获取剧集ID
+  static const String bangumiEpisodeByID = '/v0/episodes';
+
+  /// 返回当前 Access Token 对应的用户信息
+  static const String bangumiUsernameByToken = '/v0/me';
+
+  /// 新增或修改用户单个条目收藏
+  static const String bangumiSetCollection = '/v0/users/-/collections/{0}';
+
+  /// 获取用户全部收藏（不限类型）。用户名，分页参数1(limit)，分页参数2(offset)
+  static const String bangumiGetAllCollections =
+      '/v0/users/{0}/collections?subject_type=2&limit={1}&offset={2}';
+
+  /// Bangumi Next API Domain
+  static const String bangumiAPINextDomain = 'https://next.bgm.tv';
+
+  static const bangumiPublicApiHosts = {'api.bgm.tv', 'next.bgm.tv'};
+
+  /// 每日放送
+  static const String bangumiCalendar = '/p1/calendar';
+
+  /// 番剧趋势
+  static const String bangumiTrendsNext = '/p1/trending/subjects';
+
+  /// Kazumi Bangumi 镜像缓存榜单
+  static const String bangumiMirrorPopularSubjects =
+      '/kazumi/v1/popular/subjects';
+
+  /// Kazumi Bangumi 镜像季节时间表
+  static const String bangumiMirrorSeasonCalendar =
+      '/kazumi/v1/calendar/season';
+
+  /// 番剧信息
+  static const String bangumiInfoByIDNext = '/p1/subjects/{0}';
+
+  /// 番剧评论
+  static const String bangumiCommentsByIDNext =
+      '/p1/subjects/{0}/comments?limit={1}&offset={2}';
+
+  /// 番剧剧集评论
+  static const String bangumiEpisodeCommentsByIDNext =
+      '/p1/episodes/{0}/comments';
+
+  /// 番剧角色信息
+  static const String bangumiCharacterInfoByCharacterIDNext =
+      '/p1/characters/{0}';
+
+  /// 番剧角色评论
+  static const String bangumiCharacterCommentsByIDNext =
+      '/p1/characters/{0}/comments';
+
+  /// DanDanPlay API Domain
+  static const String dandanAPIDomain = 'https://api.dandanplay.net';
+
+  /// 获取弹幕
+  static const String dandanAPIComment = "/api/v2/comment/";
+
+  /// 检索弹弹番剧元数据
+  static const String dandanAPISearchEpisodes = "/api/v2/search/episodes";
+
+  /// 获取弹弹番剧元数据
+  static const String dandanAPIInfo = "/api/v2/bangumi/";
+
+  /// 获取弹弹番剧元数据（通过BGM番剧ID）
+  static const String dandanAPIInfoByBgmBangumiId = "/api/v2/bangumi/bgmtv/{0}";
+
+  /// 图片识别番剧
+  static const String traceApi = 'https://api.trace.moe/search';
+
+  static String formatUrl(String url, List<dynamic> params) {
+    for (int i = 0; i < params.length; i++) {
+      url = url.replaceAll('{$i}', params[i].toString());
+    }
+    return url;
+  }
+}

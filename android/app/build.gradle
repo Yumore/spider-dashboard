@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         applicationId 'com.nsapp.dashboard'
-        minSdk flutter.minSdkVersion
+        minSdk 23
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
@@ -49,6 +49,16 @@ android {
             }
         }
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging true
+            pickFirsts += ['**/libc++_shared.so']
+        }
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
 }
 
 kotlin {
@@ -59,6 +69,45 @@ kotlin {
 
 flutter {
     source '../..'
+}
+
+dependencies {
+    implementation('com.github.yangfeng1994:FFmpeg-Android:v2.0.1') {
+        exclude group: 'com.android.support'
+    }
+}
+
+def shortDramaBuildScript = rootProject.file('../tool/build_short_drama_native.py')
+def shortDramaNativeOutput = file('src/main/jniLibs')
+def pythonExecutable = System.getProperty('os.name').toLowerCase().contains('windows') ? 'python' : 'python3'
+def shortDramaAllSources = true
+def encodedDartDefines = project.findProperty('dart-defines')
+if (encodedDartDefines instanceof String) {
+    encodedDartDefines.split(',').each { encodedDefine ->
+        try {
+            def define = new String(java.util.Base64.getDecoder().decode(encodedDefine), 'UTF-8')
+            if (define.startsWith('ALL_SOURCES=')) {
+                shortDramaAllSources = define.substring('ALL_SOURCES='.length()).toBoolean()
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Ignore malformed values; Flutter supplies other dart defines here too.
+        }
+    }
+}
+def buildShortDramaNative = tasks.register('buildShortDramaNative', Exec) {
+    inputs.file(shortDramaBuildScript)
+    inputs.files(fileTree(rootProject.file('../native')) {
+        include '**/*.go', 'go.mod', 'go.sum'
+    })
+    inputs.property('shortDramaAllSources', shortDramaAllSources.toString())
+    outputs.dir(shortDramaNativeOutput)
+    workingDir rootProject.projectDir.parentFile
+    commandLine pythonExecutable, shortDramaBuildScript.absolutePath
+    environment 'SHORT_DRAMA_ALL_SOURCES', shortDramaAllSources.toString()
+}
+
+tasks.named('preBuild').configure {
+    dependsOn(buildShortDramaNative)
 }
 
 tasks.configureEach { task ->

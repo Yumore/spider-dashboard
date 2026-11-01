@@ -9,6 +9,7 @@ import 'package:dashboard/features/novel/novel_entry_catalog.dart';
 import 'package:dashboard/features/shared/ui/content_entry.dart';
 import 'package:dashboard/features/shared/ui/content_entry_section.dart';
 import 'package:dashboard/features/shared/ui/content_tokens.dart';
+import 'package:dashboard/features/short_drama/short_drama_module_page_export.dart';
 import 'package:flutter/material.dart';
 
 /// Unified categories that route to the already-integrated business modules.
@@ -17,6 +18,26 @@ sourceLibraryCategories = [
   (title: '动漫', sections: animeEntryCatalog),
   (title: '小说', sections: novelEntryCatalog),
   (title: '视频', sections: movieEntryCatalog),
+  (
+    title: '短剧',
+    sections: [
+      ContentEntrySection(
+        title: '真果鉴 · 全站源',
+        description: '短剧目录、追剧记录、下载离线与局域网同步',
+        entries: [
+          ContentEntry(
+            id: 'hongguo-short-drama-library',
+            requires: AppCapability.shortDrama,
+            title: '短剧工作台',
+            subtitle: '站源浏览、播放、下载管理与多用户权限',
+            icon: Icons.live_tv_outlined,
+            accent: ContentAccents.movie,
+            builder: (_) => const ShortDramaModulePage(),
+          ),
+        ],
+      ),
+    ],
+  ),
   (title: '漫画', sections: comicEntryCatalog),
   (title: '直播', sections: liveEntryCatalog),
   (

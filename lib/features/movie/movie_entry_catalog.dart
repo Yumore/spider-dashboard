@@ -9,12 +9,15 @@ import 'package:dashboard/features/movie/flutterdouban/flutterdouban_page.dart';
 import 'package:dashboard/features/movie/fluttermovies/fluttermovies_page.dart';
 import 'package:dashboard/features/movie/inkino/inkino_page.dart';
 import 'package:dashboard/features/movie/movieapp/movieapp_page.dart';
+import 'package:dashboard/features/movie/tvbox/tvbox_catalog_page.dart';
+import 'package:dashboard/features/media/local_media_library_page.dart';
 import 'package:dashboard/features/movie/youtubedl/youtubedl_page.dart';
 import 'package:dashboard/features/movie/yyets/yyets_home_page.dart';
 import 'package:dashboard/features/shared/ui/content_entry.dart';
 import 'package:dashboard/features/shared/ui/content_tokens.dart';
 import 'package:dashboard/features/short_video/douyin/douyin_entry_page.dart';
 import 'package:dashboard/features/short_video/short_video_demo_page.dart';
+import 'package:dashboard/features/short_drama/short_drama_module_page_export.dart';
 import 'package:flutter/material.dart';
 
 /// Movie and short-video services reachable from the movie module.
@@ -24,7 +27,7 @@ import 'package:flutter/material.dart';
 final List<ContentEntrySection> movieEntryCatalog = [
   ContentEntrySection(
     title: '影视服务与短视频',
-    description: '在线影视站点、短视频演示与下载工具',
+    description: '在线影视站点、短剧、短视频演示与下载工具',
     entries: [
       ContentEntry(
         id: 'eyepetizer',
@@ -100,6 +103,15 @@ final List<ContentEntrySection> movieEntryCatalog = [
         builder: (_) => const YyetsHomePage(),
       ),
       ContentEntry(
+        id: 'hongguo-short-drama',
+        requires: AppCapability.shortDrama,
+        title: '真果鉴 · 全站源短剧',
+        subtitle: '浏览搜索、多站源播放、追剧、下载、离线与局域网续播',
+        icon: Icons.live_tv_outlined,
+        accent: ContentAccents.movie,
+        builder: (_) => const ShortDramaModulePage(),
+      ),
+      ContentEntry(
         id: 'short-video-demo',
         requires: AppCapability.videoPlayback,
         title: '本地短视频演示',
@@ -133,6 +145,23 @@ final List<ContentEntrySection> movieEntryCatalog = [
         icon: Icons.movie_creation_outlined,
         accent: ContentAccents.movie,
         builder: (_) => const DyttPage(),
+      ),
+      ContentEntry(
+        id: 'tvbox-cms',
+        title: 'TVBox / CMS 自定义影视源',
+        subtitle: '导入源配置、搜索影片、选择线路并使用统一播放器播放',
+        icon: Icons.video_settings_outlined,
+        accent: ContentAccents.movie,
+        builder: (_) => const TvBoxCatalogPage(),
+      ),
+      ContentEntry(
+        id: 'local-media-library',
+        requires: AppCapability.fileSystem,
+        title: '本地媒体库',
+        subtitle: '导入本地视频文件、管理索引并使用统一播放器播放',
+        icon: Icons.folder_special_outlined,
+        accent: ContentAccents.movie,
+        builder: (_) => const LocalMediaLibraryPage(),
       ),
     ],
   ),
