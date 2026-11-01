@@ -9,6 +9,7 @@ import 'package:dashboard/features/novel/novel_module_page.dart';
 import 'package:dashboard/features/reading/reading_module_page.dart';
 import 'package:dashboard/features/shared/ui/content_entry.dart';
 import 'package:dashboard/features/shared/ui/content_tokens.dart';
+import 'package:dashboard/features/source_library/source_library_page.dart';
 import 'package:flutter/material.dart';
 
 /// Single source of truth for the top-level content modules.
@@ -84,6 +85,20 @@ final List<ContentEntrySection> contentModuleCatalog = [
         icon: Icons.travel_explore,
         accent: ContentAccents.crawler,
         builder: (_) => const CrawlerModulePage(),
+      ),
+    ],
+  ),
+  ContentEntrySection(
+    title: '统一内容源',
+    description: '集中查找已接入的动漫、小说、视频、漫画、直播、媒体与采集逻辑',
+    entries: [
+      ContentEntry(
+        id: 'source-library',
+        title: '内容源库',
+        subtitle: '按内容类型浏览统一接入的来源与播放器',
+        icon: Icons.hub_outlined,
+        accent: ContentAccents.reading,
+        builder: (_) => const SourceLibraryPage(),
       ),
     ],
   ),

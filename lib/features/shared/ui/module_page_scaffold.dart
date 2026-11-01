@@ -1,3 +1,4 @@
+import 'package:dashboard/features/shared/ui/content_page_theme.dart';
 import 'package:dashboard/features/shared/ui/content_tokens.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +10,7 @@ class ModulePageScaffold extends StatelessWidget {
     required this.body,
     this.actions,
     this.bottom,
+    this.floatingActionButton,
     super.key,
   });
 
@@ -24,29 +26,15 @@ class ModulePageScaffold extends StatelessWidget {
   final Widget body;
   final List<Widget>? actions;
   final PreferredSizeWidget? bottom;
+  final Widget? floatingActionButton;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(
-        cardTheme: theme.cardTheme.copyWith(
-          elevation: 0,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(ContentRadius.card),
-          ),
-        ),
-        inputDecorationTheme: theme.inputDecorationTheme.copyWith(
-          isDense: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(ContentRadius.icon),
-          ),
-        ),
-      ),
+    return ContentPageTheme(
       child: Scaffold(
         appBar: AppBar(title: Text(title), actions: actions, bottom: bottom),
         body: body,
+        floatingActionButton: floatingActionButton,
       ),
     );
   }
