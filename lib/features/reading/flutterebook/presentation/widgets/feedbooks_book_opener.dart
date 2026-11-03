@@ -1,14 +1,12 @@
 import 'dart:io';
 
+import 'package:dashboard/features/reading/local_library/local_reading_record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// 打开已下载 EPUB 的方式。
+/// Feedbooks 下载文件的存在性检查与外部打开兼容入口。
 ///
-/// 源工程用 vendored Readium（`iridium_reader_widget` 的
-/// `EpubScreen.fromPath`）就地阅读；该目录明确不属于本次移植范围，宿主也没有
-/// 其它 EPUB 渲染器（`alexandria` 是 libgen/zlib 搜索页，`easymygo` /
-/// `book/reader` 是纯文本排版器），所以这里按任务允许的方式**交给系统外部
-/// 应用打开**。
+/// Dashboard 的 Feedbooks 页面直接使用本地 Papyrus 阅读器；[openFile]
+/// 保留为需要外部应用的调用方兼容入口。
 ///
 /// 做成可注入的类（同 `YyetsLinkLauncher` 的写法）：widget 测试塞一个记录型
 /// 假实现，不必真的拉起外部应用。
@@ -27,6 +25,19 @@ class FeedbooksBookOpener {
 
   /// 文件在但没能唤起外部应用时的提示文案（源工程没有这条路径）。
   static const String openFailedMessage = 'Could not open the book file.';
+
+  static LocalReadingRecord readingRecord({
+    required String id,
+    required String name,
+    required String path,
+  }) => LocalReadingRecord(
+    id: 'feedbooks-$id',
+    name: name,
+    path: path,
+    format: 'epub',
+    sizeBytes: 0,
+    importedAt: DateTime.fromMillisecondsSinceEpoch(0),
+  );
 
   Future<bool> exists(String path) async {
     if (path.trim().isEmpty) return false;

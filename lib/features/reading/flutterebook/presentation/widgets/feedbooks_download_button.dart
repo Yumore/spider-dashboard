@@ -4,13 +4,13 @@ import 'package:dashboard/features/reading/flutterebook/models/entry.dart';
 import 'package:dashboard/features/reading/flutterebook/presentation/controllers/feedbooks_downloads_controller.dart';
 import 'package:dashboard/features/reading/flutterebook/presentation/widgets/feedbooks_book_opener.dart';
 import 'package:dashboard/features/reading/flutterebook/presentation/widgets/feedbooks_download_alert.dart';
+import 'package:dashboard/features/reading/local_library/local_reading_reader_page.dart';
 import 'package:flutter/material.dart';
 
 /// 源工程详情页的 `_DownloadButton`：未下载显示 `DOWNLOAD`，
 /// 已下载（本地库里有同 id 记录）显示 `READ BOOK`。
 ///
-/// 阅读动作按 [FeedbooksBookOpener] 处理：文件不存在 → 提示 + 删掉这条过期
-/// 记录（源工程 `openBook` 的行为），文件在 → 交给外部应用打开。
+/// 文件不存在时提示并删除失效记录；文件存在时使用 Dashboard 内置阅读器。
 class FeedbooksDownloadButton extends StatelessWidget {
   const FeedbooksDownloadButton({
     super.key,
@@ -86,10 +86,14 @@ class FeedbooksDownloadButton extends StatelessWidget {
       await downloads.deleteBook(id);
       return;
     }
-    final bool opened = await opener.openFile(path);
-    if (!context.mounted || opened) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(content: Text(FeedbooksBookOpener.openFailedMessage)),
+    await Navigator.of(context).push<void>(
+      LocalReadingReaderPage.route(
+        record: FeedbooksBookOpener.readingRecord(
+          id: id,
+          name: entry.title?.t ?? 'Feedbooks',
+          path: path,
+        ),
+      ),
     );
   }
 }

@@ -33,6 +33,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.6.0
   flutter_js: ^0.8.7
+  papyrus_reader:
+    git:
+      url: https://github.com/PapyrusReader/reader.git
+      ref: fa667ae96c64e2d1d80c06e83d326265673abc75
   html: ^0.15.6
   enough_convert: ^1.6.0
   image_picker: ^1.2.1

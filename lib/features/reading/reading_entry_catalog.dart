@@ -6,6 +6,7 @@ import 'package:dashboard/features/reading/dodu_page.dart';
 import 'package:dashboard/features/reading/easymygo/easymygo_page.dart';
 import 'package:dashboard/features/reading/eso/eso_page.dart';
 import 'package:dashboard/features/reading/flutterebook/presentation/pages/home/feedbooks_home_page.dart';
+import 'package:dashboard/features/reading/local_library/local_reading_library_page.dart';
 import 'package:dashboard/features/reading/reading_web_page.dart';
 import 'package:dashboard/features/reading/zhihu_demo/zhihu_demo_page.dart';
 import 'package:dashboard/features/shared/ui/content_entry.dart';
@@ -20,6 +21,15 @@ final List<ContentEntrySection> readingEntryCatalog = [
     title: '书源与书库',
     description: '插件书源、Legado 书源与本地书架',
     entries: [
+      ContentEntry(
+        id: 'local-reading-library',
+        requires: AppCapability.fileSystem,
+        title: '电子书与教材',
+        subtitle: '导入 EPUB / PDF · 目录 / 阅读进度 / 高亮与笔记',
+        icon: Icons.menu_book_outlined,
+        accent: ContentAccents.reading,
+        builder: (_) => const LocalReadingLibraryPage(),
+      ),
       ContentEntry(
         id: 'easymygo',
         title: 'EasyMyGo 插件阅读',

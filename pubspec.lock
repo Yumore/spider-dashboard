@@ -499,6 +499,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.7.1"
+  epub_pro:
+    dependency: transitive
+    description:
+      name: epub_pro
+      sha256: "2f405dcf31e45abf4e714acf99ca85e6bea61643160f5a51239f3077f6d3f06a"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "5.6.0"
   equatable:
     dependency: transitive
     description:
@@ -744,6 +752,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "9.2.2"
+  flutter_html:
+    dependency: transitive
+    description:
+      name: flutter_html
+      sha256: "38a2fd702ffdf3243fb7441ab58aa1bc7e6922d95a50db76534de8260638558d"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "3.0.0"
   flutter_inappwebview:
     dependency: transitive
     description:
@@ -1019,10 +1035,10 @@ packages:
     dependency: "direct main"
     description:
       name: html
-      sha256: "43b67b8f43321ab066817dfac5619596c98bb1b61624e77203bb4351785f9699"
+      sha256: "6d1264f2dffa1b1101c25a91dff0dc2daee4c18e87cd8538729773c073dbf602"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "0.15.7"
+    version: "0.15.6"
   html_unescape:
     dependency: "direct main"
     description:
@@ -1262,6 +1278,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.1.0"
+  list_counter:
+    dependency: transitive
+    description:
+      name: list_counter
+      sha256: c447ae3dfcd1c55f0152867090e67e219d42fe6d4f2807db4bbe8b8d69912237
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.0.2"
   listen:
     dependency: transitive
     description:
@@ -1699,6 +1723,15 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "4.1.0"
+  papyrus_reader:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: fa667ae96c64e2d1d80c06e83d326265673abc75
+      resolved-ref: fa667ae96c64e2d1d80c06e83d326265673abc75
+      url: "https://github.com/PapyrusReader/reader.git"
+    source: git
+    version: "0.0.1"
   path:
     dependency: "direct main"
     description:
@@ -1763,6 +1796,38 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.3.0"
+  pdfium_dart:
+    dependency: transitive
+    description:
+      name: pdfium_dart
+      sha256: "3e250021b2f462058aae216837902fdc8b2cb7f0657e4ec2bc9ac541f960ff84"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.4.1"
+  pdfium_flutter:
+    dependency: transitive
+    description:
+      name: pdfium_flutter
+      sha256: "4d18e6181aa87200750aa4fc607c870f957731b1de9252c2ea19627c19109388"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.4.1"
+  pdfrx:
+    dependency: transitive
+    description:
+      name: pdfrx
+      sha256: "6aa2eb0fce9029933790e58f8dcd46ec630342e46d8f6c6d32b716acc03ca02c"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.11.0"
+  pdfrx_engine:
+    dependency: transitive
+    description:
+      name: pdfrx_engine
+      sha256: "08d0d0843807b632f23836d6f021d1ff391b1988e124894067045242f03d7f96"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.9.0"
   permission_handler:
     dependency: transitive
     description:
@@ -2813,6 +2878,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.0.1"
+  word_count:
+    dependency: transitive
+    description:
+      name: word_count
+      sha256: "98ccd8ef6d614bcf11a7e6d39d43d08193a3a42d360104234018d1dfb86c413d"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.0.4"
   xdg_directories:
     dependency: transitive
     description:

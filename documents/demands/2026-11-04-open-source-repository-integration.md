@@ -1,6 +1,6 @@
-# 开源内容工程能力集成记录（2026-11-03）
+# 开源内容工程能力集成记录（2026-11-04）
 
-日期：2026-11-03
+日期：2026-11-04
 
 ## 范围与决策
 
@@ -121,3 +121,35 @@
 
 - `flutter pub get` 成功；`dart format` 已格式化本次 Dart 改动。5 个目标 Dart 文件的 `flutter analyze` 无问题；另行分析 `lib/main.dart` 时只报告 5 条原有 info，均位于本次未修改行。
 - 未运行测试、APK/Web/桌面构建或设备验证；没有在线逐个执行第三方书源。此项验证只证明代码静态检查结果，不证明具体站点脚本、平台打包或 UI 运行行为。
+
+## 2026-11-04 Flutter 阅读、媒体与创作工程逐项检索
+
+按用户列出的 13 类顺序检索 GitHub，并对照当前 Dashboard 入口和依赖。检索到的现有同类模块不重复嵌套完整客户端；新集成仅补本工程缺少的 EPUB/PDF 应用内阅读、教材本机导入和批注链路。
+
+| 序号 | 类别与 Flutter 候选 | 处理结果 |
+| --- | --- | --- |
+| 1 | 小说： [leetomlee123/book](https://github.com/leetomlee123/book) | 当前已具备 Legado/EasyMyGo/ESO 源与书架；上一轮已将 MIT `flutter_js` 接入 Legado JS 规则，搜索、目录、正文继续由现有解析管线处理，本轮不重复复制另一套小说应用。 |
+| 2 | 漫画： [Mangayomi](https://github.com/kodjodevf/mangayomi)、[PicaComic](https://github.com/wgh136/PicaComic) | Dashboard 已有 Pica、Pixez、Haka 等来源和阅读入口；Mangayomi 扩展依赖其专有脚本合约，本轮没有把扩展清单伪装成可运行漫画源。 |
+| 3 | 动漫： [Mangayomi](https://github.com/kodjodevf/mangayomi) | Dashboard 已有 Kazumi XPath 源及 AnimeOne、TakoPlay、AnimeTrace 入口；Mangayomi 平台层与扩展运行时不兼容，本轮不另嵌整套播放器。 |
+| 4 | 视频： [media-kit](https://github.com/media-kit/media-kit)、[pro_video_player](https://github.com/vitormf/pro_video_player) | 当前播放器已使用 media-kit 并服务短视频、影视和本地媒体；第二个候选是重叠的播放器后端，本轮不叠加新的原生播放器依赖。 |
+| 5 | 影视： [Freeplix](https://github.com/iamnabink/Freeplix) | 候选主要提供 TMDB 目录和用户自配的播放地址；Dashboard 已有 TVBox/CMS、影片详情/选集和统一播放器，未重复迁入另一套目录 UI。 |
+| 6 | 短剧： [Hongguo](https://github.com/czgyz/hongguo)、[Zhenguo](https://github.com/youniube/zhenguo-app) | 两个来源的短剧目录、站源、播放和本机工作流已在当前短剧模块；本轮没有再复制平行客户端。 |
+| 7 | 直播： [OpenIPTV](https://github.com/DR-89/openiptv) | 候选要求用户导入 M3U/Xtream 源；现有 PureLive、SimpleLive 和 MyTV 已覆盖相同播放/源配置入口，本轮不增加重复 IPTV 客户端。 |
+| 8 | AI 漫剧： [Toonflow](https://github.com/HBAI-Ltd/Toonflow-app) | 仓库提供无限画布、脚本、资产和模型工作流，但项目树以 Bun/桌面及本地服务为主，未找到可确认的 Flutter 模块；现有 Reveric 业务参考已接入小说/短剧/漫剧文本与分镜创作，本轮不把非 Flutter 应用嵌入宿主。 |
+| 9 | AI 工作台： [BeatDesign](https://github.com/BeatAPI/BeatDesign) | 候选以 pnpm、浏览器编辑器和 MCP 工具组成，不是 Flutter 工程；本地创作工作台已有项目、剧本、分镜提示及 OpenAI 兼容文本生成入口，本轮未复制非 Flutter 工具链。 |
+| 10 | 数字人： [Mynah](https://github.com/honwee/mynah) | 上游由 Go 实时服务、Python avatar worker 和 WebRTC 客户端组成，运行需要 GPU/模型 worker 或远端端点；不属于 Flutter 客户端，也没有可验收服务配置，本轮跳过。 |
+| 11 | 书籍： [Papyrus client](https://github.com/PapyrusReader/client) | 完整客户端的账号、同步和目录 relay 需要其 FastAPI/数据库服务；只选用独立阅读器子仓库，宿主自行保存本机书目、进度和笔记。 |
+| 12 | 电子书： [Papyrus Reader](https://github.com/PapyrusReader/reader) | 将 `development` 提交 `fa667ae96c64e2d1d80c06e83d326265673abc75` 固定为根 `papyrus_reader` Git 依赖，实际接入 EPUB 2/3 与 PDF 阅读、目录、排版设置和定位恢复；Feedbooks 下载 EPUB 也改为应用内阅读。 |
+| 13 | 教材： [Swipe Book](https://github.com/sajanpoudel/Swipebook) | 上游以 Firebase 保存课程与资源，教材文件来源也不适合直接打包复用；本工程新增本机 EPUB/PDF 导入，支持教材目录、进度、选区高亮和笔记，不预置受版权约束的教材内容。 |
+
+### 本机书籍与教材接入
+
+- 阅读入口新增“电子书与教材”；通过文件选择器复制 EPUB/PDF 到应用文档目录，书目元数据和每本书的 locator、排版偏好、高亮与笔记保存在本机偏好库。阅读状态的并发更新串行写入，避免定位、排版或批注同时保存时互相覆盖。
+- Papyrus Reader 通过 pinned Git dependency 使用；服务地址、账号和云端同步均不需要。删除本机书籍时同步清理文件副本和阅读会话；Feedbooks 下载记录仍由其原有下载库管理，只共享阅读器会话能力。
+- 依赖将根工程 `html` 解析版本从 `0.15.7` 锁定到 Papyrus Reader 兼容的 `0.15.6`；完整依赖图由 `pubspec.lock` 管理。上游的 AGPL-3.0 与本工程 AGPL-3.0 一致，Papyrus 包内的 EPUB worker 第三方声明随依赖保留。
+- 当前格式范围是 EPUB 2/3 reflowable 与 PDF；固定版式 EPUB、MOBI/AZW3 和 DRM 文件不在阅读器支持范围。阅读器载入完整文件字节，超大文件会增加内存占用。
+
+### 本轮验证边界
+
+- `flutter pub get` 成功，Papyrus Reader 锁定到上述 commit；本次新增阅读库、阅读器、Feedbooks 入口和阅读目录的目标路径 `flutter analyze` 无问题。全工程分析仍列出 1585 条既有诊断（主要是旧源码的 lint、弃用和警告）；本次目标路径单独分析无诊断。
+- 未运行测试、APK/Web/桌面构建或设备 UI 验收；没有在实际 EPUB/PDF 文件上确认渲染、翻页、Web Worker CSP 或不同平台文件选择行为。当前阅读入口按本机文件系统能力显示，Web 不提供本机书架入口。
