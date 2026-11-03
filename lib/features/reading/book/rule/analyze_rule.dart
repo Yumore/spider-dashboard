@@ -71,6 +71,7 @@ class AnalyzeRule {
         result: content,
         baseUrl: baseUrl,
         src: content,
+        jsLib: jsLib,
       );
       final tail = hybrid.tail.trim();
       if (tail.isEmpty) {

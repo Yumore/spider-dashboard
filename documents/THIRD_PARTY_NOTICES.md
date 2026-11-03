@@ -19,7 +19,10 @@
 | [FiveHair/pure_live](https://github.com/FiveHair/pure_live) | `e55f82c8d78d54cdd90aeab0db7dc6a7b10b9fc2` | AGPL-3.0，上游 `LICENSE`；未重复复制代码 | 无新增独立目录；现有平台封装与 `tool/package.dart` 维护跨平台入口 | 该分支重点是 HarmonyOS/鸿蒙适配，其补丁依赖定制 OH Flutter SDK、OHOS 插件分支及本地 vendor 依赖；未把这些工具链绑定的覆盖项带入统一依赖 |
 | [liuchuancong/pure_live_TV](https://github.com/liuchuancong/pure_live_TV) | `6a1186630b41df36d0ae4ed7bb996d6c1c745897` | AGPL-3.0，上游 `LICENSE`；未重复复制代码 | `packages/pure_live/`, `lib/features/live/pure_live/` | TV 直播入口、遥控器导航与 IPTV 能力与现有 PureLive 集成重叠；沿用已有宿主入口和电视版 UI，不再嵌套第二套完整应用 |
 | [looplj/reveric](https://github.com/looplj/reveric) | `c5df958d314e14804ba027acc51a2a46ab4e9557` | AGPL-3.0；上游 `NOTICES` 含 AGPLv3 Section 7 显著署名与项目链接附加条款 | `lib/features/short_drama/creator/` | 采用其小说/短剧/漫剧创作工作流作为业务参考，按宿主数据模型与 UI 重写本机项目库、分集剧本/分镜草稿和 OpenAI 兼容文本生成；创作页显示所需署名与上游链接。没有迁入桌面画布、3D 导演台或其 AI 插件/模型依赖。 |
+| [flutter_js](https://pub.dev/packages/flutter_js) | `0.8.7`（`pubspec.lock`） | MIT，Copyright © 2019 Ábner Oliveira | `lib/features/reading/book/analyzer/js_runtime_native.dart` | 为 Legado `@js:` / `<js>` 书源规则提供原生同步 JS 执行；本地适配仅开放 `result`、`src`、`baseUrl` 与 `jsLib` 上下文，运行默认关闭并由用户选择启用。 |
 
 纯 Flutter 依赖 `ffmpeg_kit_flutter_new_min_gpl` 由 `pubspec.lock` 锁定；其 GPL 许可随 Pub 包发布。WebDAV、直播账号、站源服务和 NAS 地址均由用户提供。项目未迁入任何源仓库中的签名密钥或服务端凭据。
 
 对本表中标记“未重复复制代码”的仓库，仅记录版本、许可和能力重叠，不表示其每项独有上游行为均已逐项实现或验收。用户授权的未声明许可来源限于本表注明的两个仓库。
+
+`leetomlee123/book`（[Apache-2.0](https://github.com/leetomlee123/book)，检查 `master` 分支于 2026-11-03）作为 Flutter Legado JS 书源实现参考；未复制其应用源码或本地补丁。宿主独立接入上表 MIT `flutter_js` 依赖。

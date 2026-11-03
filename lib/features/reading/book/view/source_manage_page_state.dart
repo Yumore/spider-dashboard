@@ -1,4 +1,5 @@
 import 'package:dashboard/features/reading/book/importer/source_importer.dart';
+import 'package:dashboard/features/reading/book/analyzer/js_analyzer.dart';
 import 'package:dashboard/features/reading/book/model/book_source.dart';
 import 'package:dashboard/features/reading/book/repo/yckceo_repo.dart';
 import 'package:dashboard/features/reading/book/repository/source_repository.dart';
@@ -9,6 +10,7 @@ import 'package:dashboard/features/shared/ui/content_status.dart';
 import 'package:dashboard/features/shared/ui/module_page_scaffold.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SourceManagePageState extends State<SourceManagePage> {
   final SourceRepository _sources = SourceRepository.instance;
@@ -24,11 +26,45 @@ class SourceManagePageState extends State<SourceManagePage> {
   List<BookSource> _items = const <BookSource>[];
   bool _loading = true;
   String? _error;
+  bool _javaScriptEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    _javaScriptEnabled = JsEngine.instance.enabled;
     _load();
+  }
+
+  Future<void> _toggleJavaScript(bool enabled) async {
+    if (enabled && !JsEngine.instance.runtimeAvailable) return;
+    if (enabled) {
+      final confirmed =
+          await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('启用书源 JavaScript？'),
+              content: const Text(
+                '启用后，导入书源中的 JavaScript 规则会在本机执行。脚本可能发起网络请求或阻塞当前操作；请只启用你信任的书源。',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('启用'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+      if (!confirmed) return;
+    }
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(JsEngine.enabledPreferenceKey, enabled);
+    JsEngine.instance.enabled = enabled;
+    if (mounted) setState(() => _javaScriptEnabled = enabled);
   }
 
   Future<void> _load() async {
@@ -184,58 +220,96 @@ class SourceManagePageState extends State<SourceManagePage> {
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
-      return ContentStatusView(
-        title: '书源加载失败',
-        message: _error!,
-        icon: Icons.error_outline,
-        actionLabel: '重试',
-        onAction: () => _load(),
+      return Column(
+        children: [
+          _javaScriptSetting(),
+          Expanded(
+            child: ContentStatusView(
+              title: '书源加载失败',
+              message: _error!,
+              icon: Icons.error_outline,
+              actionLabel: '重试',
+              onAction: () => _load(),
+            ),
+          ),
+        ],
       );
     }
     if (_items.isEmpty) {
-      return ContentStatusView(
-        title: '还没有书源',
-        message: '导入 Legado JSON，或从公开书源仓库添加来源。',
-        icon: Icons.source_outlined,
-        actionLabel: '导入 JSON',
-        onAction: () => _importText(),
-      );
-    }
-    return ListView.separated(
-      padding: ModulePageScaffold.pagePadding,
-      itemCount: _items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: ContentSpacing.sm),
-      itemBuilder: (context, index) {
-        final source = _items[index];
-        final enabled = source.enabled;
-        return Card(
-          margin: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
-          child: ListTile(
-            title: Text(
-              source.bookSourceName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${source.bookSourceGroup.isEmpty ? "未分组" : source.bookSourceGroup}\n'
-              '${source.bookSourceUrl}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            isThreeLine: true,
-            leading: Switch(
-              value: enabled,
-              onChanged: (value) => _toggle(source, value),
-            ),
-            trailing: IconButton(
-              tooltip: '删除',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _delete(source),
+      return Column(
+        children: [
+          _javaScriptSetting(),
+          Expanded(
+            child: ContentStatusView(
+              title: '还没有书源',
+              message: '导入 Legado JSON，或从公开书源仓库添加来源。',
+              icon: Icons.source_outlined,
+              actionLabel: '导入 JSON',
+              onAction: () => _importText(),
             ),
           ),
-        );
-      },
+        ],
+      );
+    }
+    return Column(
+      children: [
+        _javaScriptSetting(),
+        Expanded(
+          child: ListView.separated(
+            padding: ModulePageScaffold.pagePadding,
+            itemCount: _items.length,
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: ContentSpacing.sm),
+            itemBuilder: (context, index) {
+              final source = _items[index];
+              final enabled = source.enabled;
+              return Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  title: Text(
+                    source.bookSourceName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${source.bookSourceGroup.isEmpty ? "未分组" : source.bookSourceGroup}\n'
+                    '${source.bookSourceUrl}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  isThreeLine: true,
+                  leading: Switch(
+                    value: enabled,
+                    onChanged: (value) => _toggle(source, value),
+                  ),
+                  trailing: IconButton(
+                    tooltip: '删除',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _delete(source),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _javaScriptSetting() {
+    final supported = JsEngine.instance.runtimeAvailable;
+    return Card(
+      margin: ModulePageScaffold.pagePadding,
+      child: SwitchListTile.adaptive(
+        secondary: const Icon(Icons.code),
+        title: const Text('执行 Legado JavaScript 规则'),
+        subtitle: Text(
+          supported ? '仅对信任的书源启用；脚本在本机执行' : '当前平台没有可用的 JavaScript 运行时',
+        ),
+        value: _javaScriptEnabled && supported,
+        onChanged: supported ? _toggleJavaScript : null,
+      ),
     );
   }
 }

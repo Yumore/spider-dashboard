@@ -9,6 +9,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   ffmpeg_kit_flutter_new_min_gpl
   file_selector_linux
   flutter_inappwebview_linux
+  flutter_js
   flutter_volume_controller
   flutter_webrtc
   media_kit_libs_linux

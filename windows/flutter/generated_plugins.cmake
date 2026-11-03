@@ -12,6 +12,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   ffmpeg_kit_flutter_new_min_gpl
   file_selector_windows
   flutter_inappwebview_windows
+  flutter_js
   flutter_volume_controller
   flutter_webrtc
   media_kit_libs_windows_video

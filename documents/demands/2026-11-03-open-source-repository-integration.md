@@ -96,3 +96,28 @@
 - 未新增 Flutter/Pub 依赖；复用工程现有 `http`、`sqflite` 和 `url_launcher`。
 - 未导入 Mangayomi 动态脚本，也未声称其扩展可直接由 Legado、TVBox 或宿主播放器执行。
 - 新增工作台目录、数据模型与入口的 `dart format` 和目标路径 `flutter analyze` 已通过；没有运行测试、构建包或真实 UI/设备验证，也没有模型凭据，因此远端 AI 响应尚未验收。
+
+## 2026-11-03 Legado JavaScript 书源执行接入
+
+本次 GitHub 检索另外核对了小说、漫画、动漫和可扩展源工程：
+
+| 仓库 | 许可与依赖边界 | 处理 |
+| --- | --- | --- |
+| [leetomlee123/book](https://github.com/leetomlee123/book) | Apache-2.0；Flutter Legado 规则子集带 JavaScript 源规则，依赖 `flutter_js` 本地补丁和 Rust 可选分页；Android 优先，没有维护 iOS 工程 | 参考其 Legado JS 书源能力，未复制上游应用源码；在现有 Legado 规则管线内接入 MIT `flutter_js` 0.8.7，尽量保留宿主已有解析、阅读 UI 和数据模型。 |
+| [DreamMangaReader](https://github.com/TypeDreamMoon/DreamMangaReader) | MIT；源运行时接收其 `prepare*/handle*` 协议，仓库本身不内置内容源 | 保留为另一种脚本源协议候选；宿主目前没有该协议的适配和漫画/动漫/小说统一脚本路由，本次不把其脚本误报成已支持来源。 |
+| [Mangayomi](https://github.com/kodjodevf/mangayomi) 与 [Mangayomi Extensions](https://github.com/m2k3a/mangayomi-extensions) | Apache-2.0；扩展依赖 Mangayomi 特定 JS/Dart API，主应用同时含 Rust 与扩展执行实现 | 没有把扩展清单导入为可运行书源；需要另行实现完整的扩展合约适配后才能接入。 |
+| [Kai-Shelf](https://github.com/abduznik/kai-shelf) | MIT；漫画浏览依赖用户部署并配置 Suwayomi、Komga 或 Kavita 服务 | 依赖自托管私有服务，按当前迁移范围跳过。 |
+| [DirectorAI](https://github.com/StevenAi01/director_ai) | 仓库页面未显示项目级许可证；文档示例要求外部智谱/Google 模型凭据和图像/视频服务 | 未复制代码或接入模型服务；现有创作工作台仍可离线保存脚本和分镜提示。 |
+
+### Legado 规则执行行为
+
+- 在书源管理增加 JavaScript 执行开关；默认关闭，打开前展示本机执行与潜在网络访问/阻塞风险说明，并把用户选择保存在偏好设置。
+- 本机原生运行时向 Legado 规则提供 `result`、`src`、`baseUrl` 和当前书源的 `jsLib`；把返回的字符串或 JSON 值交回现有 CSS/JSON/章节规则流水线，书架、搜索、目录和正文继续使用原有业务实现。
+- Web 使用条件导入降级桩；鸿蒙平台也关闭运行时，因为当前没有该插件的鸿蒙实现证据。Android、iOS 与 Windows/Linux/macOS 使用 `flutter_js` 原生运行时。
+- 这不是完整的 Legado Java API 或任意扩展兼容层：`java.*`、自定义 request/network 注入、WebView 交互和其他 Android 专有书源接口仍未实现。同步 JS 若包含不终止循环，可能阻塞当前执行线程；只对可信书源手动启用。
+- 依赖版本锁定为 `flutter_js 0.8.7`，MIT 记录已加到 `documents/THIRD_PARTY_NOTICES.md`。`leetomlee123/book` 的应用源码没有复制，其 `master` 分支仅作为能力检索参考。
+
+### 本次验证边界
+
+- `flutter pub get` 成功；`dart format` 已格式化本次 Dart 改动。5 个目标 Dart 文件的 `flutter analyze` 无问题；另行分析 `lib/main.dart` 时只报告 5 条原有 info，均位于本次未修改行。
+- 未运行测试、APK/Web/桌面构建或设备验证；没有在线逐个执行第三方书源。此项验证只证明代码静态检查结果，不证明具体站点脚本、平台打包或 UI 运行行为。

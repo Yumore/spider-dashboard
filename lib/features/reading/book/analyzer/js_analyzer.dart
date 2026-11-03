@@ -1,39 +1,38 @@
 import 'dart:convert';
 
+import 'package:dashboard/app/platform/app_platform.dart';
 import 'package:dashboard/features/reading/book/util/book_log.dart';
+import 'js_runtime_stub.dart'
+    if (dart.library.io) 'js_runtime_native.dart'
+    as platform_js;
 
-/// Legado-style JS rule host for book sources.
-///
-/// The source project evaluated `@js:` / `<js>…</js>` snippets with the
-/// `flutter_js` package. The host root pubspec declares **no** JavaScript
-/// runtime and this migration may not add dependencies, so [eval] implements
-/// the documented degradation path instead of executing script:
-///
-/// * the injected bindings are known ([result] / [baseUrl] / [src]);
-/// * a rule without a runtime returns the incoming [result] unchanged, which
-///   keeps selectors that merely *end* in a JS guard working, and makes
-///   JS-only sources fail loudly (empty list / unchanged text) rather than
-///   silently producing wrong data.
-///
-/// Detection and code extraction are fully implemented and unit tested, so the
-/// rest of the pipeline routes JS rules to exactly one place.
+/// Legado-style JavaScript rule host for book sources.
 class JsEngine {
   JsEngine._();
 
   static final JsEngine instance = JsEngine._();
 
+  static const String enabledPreferenceKey =
+      'book.source.javascript_execution_enabled';
+
   String _loadedJsLib = '';
+  bool _enabled = false;
 
-  /// Always false: no JS runtime is linked into the host.
-  bool get runtimeAvailable => false;
+  /// Whether this platform has a JavaScript runtime implementation.
+  bool get runtimeAvailable =>
+      platform_js.jsRuntimeSupported && !AppPlatform.isOhos;
 
-  /// Accepted for API parity with the source engine; records the library text
-  /// so callers can assert it was supplied even though it cannot be executed.
+  /// Execution is off until the user enables it in source management.
+  bool get enabled => _enabled && runtimeAvailable;
+
+  set enabled(bool value) => _enabled = value && runtimeAvailable;
+
+  /// Records the Legado helper library used by the current source.
   void ensureJsLib(String jsLib) {
     final lib = jsLib.trim();
     if (lib.isEmpty) return;
     _loadedJsLib = lib;
-    BookLog.d('JsEngine', 'jsLib accepted but not executed (${lib.length} chars)');
+    BookLog.d('JsEngine', 'jsLib loaded (${lib.length} chars)');
   }
 
   /// Text of the last [ensureJsLib] call (empty when none).
@@ -53,15 +52,18 @@ class JsEngine {
     if (r.startsWith('@js:')) {
       return r.substring(4).trim();
     }
-    final m = RegExp(r'<js>([\s\S]*?)</js>', caseSensitive: false).firstMatch(r);
+    final m = RegExp(
+      r'<js>([\s\S]*?)</js>',
+      caseSensitive: false,
+    ).firstMatch(r);
     if (m != null) return (m.group(1) ?? '').trim();
     final idx = r.indexOf('@js:');
     if (idx >= 0) return r.substring(idx + 4).trim();
     return null;
   }
 
-  /// Evaluate [code] with bindings. Without a runtime this returns [result]
-  /// (or [src] when [result] is empty) — never throws.
+  /// Evaluates a pure Legado transformation with [result], [baseUrl] and [src].
+  /// Source execution is opt-in because imported scripts are executable code.
   String eval(
     String code, {
     String result = '',
@@ -71,8 +73,55 @@ class JsEngine {
   }) {
     if (jsLib.isNotEmpty) ensureJsLib(jsLib);
     if (code.isEmpty) return result;
-    BookLog.d('JsEngine', 'no JS runtime; rule degraded to passthrough');
-    return result.isNotEmpty ? result : src;
+    if (!enabled) {
+      BookLog.d(
+        'JsEngine',
+        'JavaScript is disabled; rule degraded to passthrough',
+      );
+      return result.isNotEmpty ? result : src;
+    }
+    try {
+      return platform_js.evaluateJavascript(
+        _buildEvaluationScript(
+          code,
+          result: result,
+          baseUrl: baseUrl,
+          src: src,
+          jsLib: jsLib,
+        ),
+      );
+    } catch (error, stackTrace) {
+      BookLog.e(
+        'JsEngine',
+        'JavaScript rule failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return result.isNotEmpty ? result : src;
+    }
+  }
+
+  String _buildEvaluationScript(
+    String code, {
+    required String result,
+    required String baseUrl,
+    required String src,
+    required String jsLib,
+  }) {
+    final statements = <String>[
+      '(function () {',
+      'var result = ${jsonEncode(result)};',
+      'var baseUrl = ${jsonEncode(baseUrl)};',
+      'var src = ${jsonEncode(src)};',
+      if (jsLib.isNotEmpty) jsLib,
+      'var value = eval(${jsonEncode(code)});',
+      'if (value === undefined || value === null) value = result;',
+      'if (value === undefined || value === null) value = src;',
+      'if (value === undefined || value === null) return "";',
+      'return typeof value === "string" ? value : JSON.stringify(value);',
+      '})()',
+    ];
+    return statements.join('\n');
   }
 
   /// If [rule] is JS, run it against [input]; otherwise null (caller handles).

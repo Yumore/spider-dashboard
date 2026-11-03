@@ -5,6 +5,7 @@ import 'package:dashboard/app/platform/app_platform_bootstrap.dart';
 import 'package:dashboard/app/config_helper.dart';
 import 'package:dashboard/app/utils.dart';
 import 'package:dashboard/features/content_hub/content_hub_page.dart';
+import 'package:dashboard/features/reading/book/analyzer/js_analyzer.dart';
 import 'package:dashboard/sql/comic_down.dart';
 import 'package:dashboard/sql/comic_history.dart';
 import 'package:dashboard/views/comic/comic_home.dart';
@@ -43,6 +44,8 @@ void main() async {
     debugPrint('系统 UI 样式设置不可用：$error');
   }
   ConfigHelper.prefs = await SharedPreferences.getInstance();
+  JsEngine.instance.enabled =
+      ConfigHelper.prefs.getBool(JsEngine.enabledPreferenceKey) ?? false;
   await initDatabase();
   runApp(
     MultiProvider(
