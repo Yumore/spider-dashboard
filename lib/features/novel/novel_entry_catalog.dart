@@ -4,6 +4,7 @@ import 'package:dashboard/features/reading/book/view/book_shelf_page.dart';
 import 'package:dashboard/features/reading/book/view/source_manage_page.dart';
 import 'package:dashboard/features/reading/easymygo/easymygo_page.dart';
 import 'package:dashboard/features/reading/eso/eso_page.dart';
+import 'package:dashboard/features/short_drama/creator/creator_page.dart';
 import 'package:dashboard/features/shared/ui/content_entry.dart';
 import 'package:dashboard/features/shared/ui/content_tokens.dart';
 import 'package:dashboard/views/novel/novel_home.dart';
@@ -11,6 +12,20 @@ import 'package:flutter/material.dart';
 
 /// Novel business entries: the local library and the network-novel reader.
 final List<ContentEntrySection> novelEntryCatalog = [
+  ContentEntrySection(
+    title: '小说与 AI 漫剧创作',
+    description: '本机保存作品设定、章节剧本和漫剧分镜草稿',
+    entries: [
+      ContentEntry(
+        id: 'novel-ai-drama-creator',
+        title: '创作工作台',
+        subtitle: '小说 / 短剧 / AI 漫剧 · 本地项目与用户自配模型',
+        icon: Icons.auto_awesome_outlined,
+        accent: ContentAccents.novel,
+        builder: (_) => const CreatorPage(),
+      ),
+    ],
+  ),
   ContentEntrySection(
     title: '小说库',
     description: '本地书架与网络小说阅读',

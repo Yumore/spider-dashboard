@@ -1,6 +1,6 @@
-# 十二个开源仓库能力集成记录
+# 开源内容工程能力集成记录（2026-11-03）
 
-日期：2026-11-02
+日期：2026-11-03
 
 ## 范围与决策
 
@@ -69,3 +69,30 @@
 - `dart format`：覆盖 TVBox 影视源、Twitch 回看/片段与本地媒体入口相关的 25 个 Dart 文件；格式化 1 个文件。
 - `flutter analyze`：覆盖本次新增/修改的 10 个相关路径；通过，无问题。
 - 未运行测试、未构建 APK/Web/桌面/Harmony 包、未安装设备、未访问真实 CMS/Twitch 服务、未完成视频或电视遥控 UI 验收。
+
+## 2026-11-03 GitHub Flutter 工程检索与创作工作流接入
+
+本次重新检查小说源、漫画源、动漫源、影视/视频源、短剧源、直播源和 AI 漫剧的 Flutter 项目。现有 Dashboard 已有 Legado/EasyMyGo/ESO 书源、U17/画涯/Haka/PicaComic/Pixez 漫画、Kazumi/AnimeOne/TakoPlay/AnimeTrace 动漫、TVBox/CMS 与统一播放器、红果/真果鉴短剧以及 PureLive/SimpleLive/MyTV/Twitch 等直播入口。这些运行链已有对应代码和统一入口，本次不再复制第二套同类客户端。
+
+| 候选 | 许可证/运行前提 | 处理结果 |
+| --- | --- | --- |
+| [kodjodevf/mangayomi](https://github.com/kodjodevf/mangayomi) 与 [m2k3a/mangayomi-extensions](https://github.com/m2k3a/mangayomi-extensions) | Apache-2.0；主应用使用独立 Dart/JS 扩展桥、原生与 Rust 组件，扩展仓库提供的是依赖 Mangayomi 合约执行的代码 | 现有项目已经有对应内容模块，但没有 Mangayomi 扩展运行时。本次不把目录 JSON 当作可工作的书源/播放源，也不复制另一整套 UI 与运行时依赖。 |
+| [looplj/reveric](https://github.com/looplj/reveric)，上游快照 `c5df958d314e14804ba027acc51a2a46ab4e9557` | AGPL-3.0，另有署名和显著链接附加条款；当前主分支要求更新的 Flutter/Dart 工具链，并带桌面专用编辑器、原生媒体 fork 和其他大体量依赖 | 将小说/短剧项目、分集剧本和 AI 漫剧分镜提示工作流接入宿主新建的本地创作工作台；不嵌入整套 Reveric 应用，也不引入其依赖树。工作流按 Dashboard 数据模型和统一 UI 独立实现，入口保留上游要求的署名及项目链接。 |
+| [xuanyustudio/LocalMiniDrama](https://github.com/xuanyustudio/LocalMiniDrama) | 仓库描述为 JavaScript 本地桌面工具，不是 Flutter 工程 | 不符合 Flutter 工程范围，没有迁入。 |
+| [HankLiy/guoapp](https://github.com/HankLiy/guoapp) | Flutter 短剧客户端；仓库未发现明确的项目许可证 | 没有用户对该仓库的单独复用授权，未复制源码。短剧浏览和 AI 漫剧内容由既有红果/真果鉴模块提供。 |
+| [ch6vip/fqapp](https://github.com/ch6vip/fqapp) | Flutter UI 加进程内 Rust 核心；未确认与本工程兼容的许可与源站复用边界 | 未迁入其不透明源站实现；继续由宿主已有内容源、阅读器和播放器承接。 |
+
+### 创作工作台接入结果
+
+- “小说”目录和“短剧”目录均新增创作工作台入口，使用全局内容页样式。
+- 支持创建小说、短剧和 AI 漫剧项目；设定、人物、分卷/分集大纲、正文/剧本、分镜提示均按项目分别保存在本机，支持自动保存、项目删除和跨次启动加载。
+- AI 草稿通过用户填写的 OpenAI 兼容地址、模型名和 API Key 请求 `chat/completions`；支持根据当前作品及其他已填写区块为当前阶段生成内容。Key 只保存在当前页面内存，不写入项目数据或偏好设置。
+- 模型服务地址与账号由用户提供；未配置密钥时 AI 请求不可用，但本机项目编辑和保存可独立工作。没有内置云端、后端、模型账号或源内容。
+- 按 Reveric 仓库 AGPLv3 Section 7 附加条款，在创作页展示 “Based on Reveric by looplj.” 和上游项目链接；项目细节和上游许可记录见第三方声明表。
+- 当前是本机文字创作、剧本和画面提示草稿流；没有迁入 Reveric 的无限画布、3D 导演台、图像/视频模型供应商适配、智能体编排和多轨成片导出能力。没有模型凭据，未验证远端 AI 响应。
+
+### 本次检查边界
+
+- 未新增 Flutter/Pub 依赖；复用工程现有 `http`、`sqflite` 和 `url_launcher`。
+- 未导入 Mangayomi 动态脚本，也未声称其扩展可直接由 Legado、TVBox 或宿主播放器执行。
+- 新增工作台目录、数据模型与入口的 `dart format` 和目标路径 `flutter analyze` 已通过；没有运行测试、构建包或真实 UI/设备验证，也没有模型凭据，因此远端 AI 响应尚未验收。

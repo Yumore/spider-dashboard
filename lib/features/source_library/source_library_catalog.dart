@@ -10,6 +10,7 @@ import 'package:dashboard/features/shared/ui/content_entry.dart';
 import 'package:dashboard/features/shared/ui/content_entry_section.dart';
 import 'package:dashboard/features/shared/ui/content_tokens.dart';
 import 'package:dashboard/features/short_drama/short_drama_module_page_export.dart';
+import 'package:dashboard/features/short_drama/creator/creator_page.dart';
 import 'package:flutter/material.dart';
 
 /// Unified categories that route to the already-integrated business modules.
@@ -33,6 +34,20 @@ sourceLibraryCategories = [
             icon: Icons.live_tv_outlined,
             accent: ContentAccents.movie,
             builder: (_) => const ShortDramaModulePage(),
+          ),
+        ],
+      ),
+      ContentEntrySection(
+        title: '创作',
+        description: '小说、短剧与 AI 漫剧分集剧本和分镜草稿',
+        entries: [
+          ContentEntry(
+            id: 'short-drama-ai-creator',
+            title: '小说与 AI 漫剧创作',
+            subtitle: '本机项目库 · OpenAI 兼容模型由用户配置',
+            icon: Icons.auto_awesome_outlined,
+            accent: ContentAccents.movie,
+            builder: (_) => const CreatorPage(),
           ),
         ],
       ),

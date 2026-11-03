@@ -1,6 +1,6 @@
 # 第三方源码与许可记录
 
-更新日期：2026-11-02
+更新日期：2026-11-03
 
 本工程根许可证为 GNU AGPL-3.0。表内提交号界定迁移的上游快照；仓库未提供项目级 LICENSE 的来源按用户明确确认的复用授权处理。上游许可证、版权声明和随源码提供的第三方许可证保留在对应目录。
 
@@ -18,6 +18,7 @@
 | [macro233/cuipi_tv](https://github.com/macro233/cuipi_tv) | `2a6f30b0d72bc84b924e83aef265b95e61511749` | MIT，完整文本见 `documents/third_party/Cuipi-TV-MIT.txt` | `lib/features/movie/tvbox/`, `lib/features/media/local_media_library_*.dart`, `lib/features/live/my_tv/` | 适配用户导入的 TVBox/LibreTV JSON 配置、CMS 搜索/详情/选集与统一播放器；将选择的本地视频复制到应用媒体库；复用 IPTV JSON 直播源解析。未迁入硬编码源、私有地址、跳过 TLS 校验、假测速、网络刮削服务与局域网服务端 |
 | [FiveHair/pure_live](https://github.com/FiveHair/pure_live) | `e55f82c8d78d54cdd90aeab0db7dc6a7b10b9fc2` | AGPL-3.0，上游 `LICENSE`；未重复复制代码 | 无新增独立目录；现有平台封装与 `tool/package.dart` 维护跨平台入口 | 该分支重点是 HarmonyOS/鸿蒙适配，其补丁依赖定制 OH Flutter SDK、OHOS 插件分支及本地 vendor 依赖；未把这些工具链绑定的覆盖项带入统一依赖 |
 | [liuchuancong/pure_live_TV](https://github.com/liuchuancong/pure_live_TV) | `6a1186630b41df36d0ae4ed7bb996d6c1c745897` | AGPL-3.0，上游 `LICENSE`；未重复复制代码 | `packages/pure_live/`, `lib/features/live/pure_live/` | TV 直播入口、遥控器导航与 IPTV 能力与现有 PureLive 集成重叠；沿用已有宿主入口和电视版 UI，不再嵌套第二套完整应用 |
+| [looplj/reveric](https://github.com/looplj/reveric) | `c5df958d314e14804ba027acc51a2a46ab4e9557` | AGPL-3.0；上游 `NOTICES` 含 AGPLv3 Section 7 显著署名与项目链接附加条款 | `lib/features/short_drama/creator/` | 采用其小说/短剧/漫剧创作工作流作为业务参考，按宿主数据模型与 UI 重写本机项目库、分集剧本/分镜草稿和 OpenAI 兼容文本生成；创作页显示所需署名与上游链接。没有迁入桌面画布、3D 导演台或其 AI 插件/模型依赖。 |
 
 纯 Flutter 依赖 `ffmpeg_kit_flutter_new_min_gpl` 由 `pubspec.lock` 锁定；其 GPL 许可随 Pub 包发布。WebDAV、直播账号、站源服务和 NAS 地址均由用户提供。项目未迁入任何源仓库中的签名密钥或服务端凭据。
 
