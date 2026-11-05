@@ -25,7 +25,7 @@ final List<ContentEntrySection> readingEntryCatalog = [
         id: 'local-reading-library',
         requires: AppCapability.fileSystem,
         title: '电子书与教材',
-        subtitle: '导入 EPUB / PDF · 目录 / 阅读进度 / 高亮与笔记',
+        subtitle: '导入 EPUB / PDF / TXT · 阅读进度 / 高亮与笔记',
         icon: Icons.menu_book_outlined,
         accent: ContentAccents.reading,
         builder: (_) => const LocalReadingLibraryPage(),

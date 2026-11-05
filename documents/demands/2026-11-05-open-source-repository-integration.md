@@ -1,6 +1,6 @@
-# 开源内容工程能力集成记录（2026-11-04）
+# 开源内容工程能力集成记录（2026-11-05）
 
-日期：2026-11-04
+日期：2026-11-05
 
 ## 范围与决策
 
@@ -153,3 +153,33 @@
 
 - `flutter pub get` 成功，Papyrus Reader 锁定到上述 commit；本次新增阅读库、阅读器、Feedbooks 入口和阅读目录的目标路径 `flutter analyze` 无问题。全工程分析仍列出 1585 条既有诊断（主要是旧源码的 lint、弃用和警告）；本次目标路径单独分析无诊断。
 - 未运行测试、APK/Web/桌面构建或设备 UI 验收；没有在实际 EPUB/PDF 文件上确认渲染、翻页、Web Worker CSP 或不同平台文件选择行为。当前阅读入口按本机文件系统能力显示，Web 不提供本机书架入口。
+
+## 2026-11-05 GitHub Flutter 工程逐项复查与 TXT 阅读接入
+
+按用户列出的 13 类顺序重新搜索 GitHub，并对照当前工程入口、依赖及平台限制。1–7 类继续使用现有业务模块；复查未发现需要再嵌套一套完整应用的候选。新补充的是本地 TXT 小说阅读，合并到已有本地书架。
+
+| 序号 | 类别与复查候选 | 决策 |
+| --- | --- | --- |
+| 1 | 小说：[Dream Manga Reader](https://github.com/TypeDreamMoon/DreamMangaReader)、[leetomlee123/book](https://github.com/leetomlee123/book) | Dream Manga Reader（MIT，检索提交 `a162c2c7634957be67beb64d8040e03e7cfba44b`）提供本地 TXT/EPUB 与多类脚本源；其 `prepare*/handle*` 源协议与 Dashboard Legado 规则合约不同，且仓库不自带源清单或站点。保留当前 Legado 书源能力，本轮迁入其本地 TXT 小说使用场景，不伪报脚本源已兼容。 |
+| 2 | 漫画：[Dream Manga Reader](https://github.com/TypeDreamMoon/DreamMangaReader)、[flutter_manga_reader](https://github.com/TesteurManiak/flutter_manga_reader)、[Open Manga Reader](https://github.com/Skyleaft/Open-Manga-Reader) | 现有 Pica/Pixez/Haka 等阅读入口继续使用；flutter_manga_reader 标注仍在开发且多数列出的源未支持，Open Manga Reader 需要 ASP.NET SignalR、Firebase 与 MangaScrapper 服务，不作为可离线迁入的独立业务模块。 |
+| 3 | 动漫：[Aimi](https://github.com/brokiem/aimi)、[Dream Manga Reader](https://github.com/TypeDreamMoon/DreamMangaReader) | Dashboard 已有 Kazumi、AnimeOne、TakoPlay、AnimeTrace 等运行链；Aimi 的多源播放与媒体 kit 能力重合，未再引入第二套动漫客户端。 |
+| 4 | 视频：[pro_video_player](https://github.com/vitormf/pro_video_player) | 该候选是原生播放器插件；宿主已有 media-kit 播放影视、短视频和本地媒体，本轮不增加重复后端。 |
+| 5 | 影视：[Freeplix](https://github.com/iamnabink/Freeplix) | TMDB 发现目录和用户自配播放地址与现有 TVBox/CMS 详情、选集及统一播放器功能重合。 |
+| 6 | 短剧：[Hongguo](https://github.com/czgyz/hongguo)、[Zhenguo](https://github.com/youniube/zhenguo-app) | 现有短剧模块已包含两来源的目录、站源、播放器和创作工作流；未重复嵌套客户端。 |
+| 7 | 直播：[OpenIPTV](https://github.com/DR-89/openiptv) | 该 GPL-3.0 客户端支持 M3U/Xtream、EPG、录制和投屏；Dashboard 已有 PureLive、SimpleLive、MyTV 与 XMLTV EPG。Xtream 需要用户自有服务地址和凭据，当前未配置；整体客户端的 TV UI/播放器会重复现有模块，因此未整体迁入，本轮未声称新增 Xtream API 支持。 |
+| 8 | AI 漫剧：[Toonflow](https://github.com/HBAI-Ltd/Toonflow-app)、[Dream Manga Reader](https://github.com/TypeDreamMoon/DreamMangaReader) | Toonflow 项目以 Bun/桌面和本地服务为主；宿主已有小说/短剧/漫剧剧本和分镜提示工作流，未复制非 Flutter 服务。 |
+| 9 | AI 工作台：[PocketLLM](https://github.com/PocketLLM/PocketLLM)、[BeatDesign](https://github.com/BeatAPI/BeatDesign) | PocketLLM 的本机模型运行与模型下载会明显增加体积和平台运行时依赖；BeatDesign 是 Web/MCP 工具链。Dashboard 已有 OpenAI 兼容创作接口，用户可配置自有兼容服务，本轮不增加重复工作台。 |
+| 10 | 数字人：[Mynah](https://github.com/honwee/mynah) | 其实时数字人依赖自托管 Go/Python 服务、WebRTC 与模型 worker（默认 FlashHead 配置要求 NVIDIA GPU）；不是可独立接入的 Flutter 功能页，没有可用部署配置，未迁入。 |
+| 11 | 书籍：[Papyrus client](https://github.com/PapyrusReader/client) | 完整客户端的同步和书目 relay 依赖服务；继续使用已集成的独立 Papyrus Reader 库和宿主本地书架。 |
+| 12 | 电子书：[Papyrus Reader](https://github.com/PapyrusReader/reader)、[Flureadium](https://github.com/mulev/flureadium) | Papyrus Reader 继续提供宿主 EPUB/PDF 阅读。Flureadium LGPL-3.0 可补 CBZ、DiViNa 和有声书，但其 Android 要求 minSdk 24、FlutterFragmentActivity 与更高 SDK，而宿主 minSdk 23；本轮不改变现有设备兼容基线。 |
+| 13 | 教材：[Local Educational App](https://github.com/trey-rosius/Local-Educational-App)、[Swipe Book](https://github.com/sajanpoudel/Swipebook) | 本地教育候选没有找到明确项目许可证，且依赖本机模型运行时；Swipe Book 依赖 Firebase 课程服务。沿用本机 EPUB/PDF 教材库并新增 TXT 本地阅读，不引入未授权代码或云端服务。 |
+
+### 新增的本地 TXT 阅读链路
+
+- 本地书架文件选择新增 TXT；选中的文件复制到应用私有书库并持久化为书目条目。UTF-8（含 BOM）、UTF-16 LE/BE（含 BOM）和 GBK 文本通过同一文本阅读页打开，滚动位置按书目 ID 保存在本机；删除书目时同时清理阅读进度。
+- 解码复用工程已有 `enough_convert` 的 GBK 编码器；阅读页与 EPUB/PDF 共享书架、文件存储和统一入口。此项是根据 Dream Manga Reader 的 TXT 本地阅读业务场景实现的宿主适配，没有复制其脚本源引擎或应用代码。
+- 第三方记录已更新：Dream Manga Reader `main` 提交 `a162c2c7634957be67beb64d8040e03e7cfba44b`、MIT；OpenIPTV 标注为 GPL-3.0；Flureadium 标注为 LGPL-3.0。未迁入后两者源码。
+
+### 本轮验证边界
+
+- `dart format`：本次涉及文件格式化完成；`flutter analyze lib/features/reading/local_library lib/features/reading/reading_entry_catalog.dart`：通过，无问题。未运行测试、构建或设备 UI 验证。不同 TXT 编码的真实样本、超大文本占用和阅读位置恢复仍需运行时验收；TXT 当前整本读入内存。

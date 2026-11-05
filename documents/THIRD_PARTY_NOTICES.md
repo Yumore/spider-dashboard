@@ -1,6 +1,6 @@
 # 第三方源码与许可记录
 
-更新日期：2026-11-04
+更新日期：2026-11-05
 
 本工程根许可证为 GNU AGPL-3.0。表内提交号界定迁移的上游快照；仓库未提供项目级 LICENSE 的来源按用户明确确认的复用授权处理。上游许可证、版权声明和随源码提供的第三方许可证保留在对应目录。
 
@@ -21,6 +21,7 @@
 | [looplj/reveric](https://github.com/looplj/reveric) | `c5df958d314e14804ba027acc51a2a46ab4e9557` | AGPL-3.0；上游 `NOTICES` 含 AGPLv3 Section 7 显著署名与项目链接附加条款 | `lib/features/short_drama/creator/` | 采用其小说/短剧/漫剧创作工作流作为业务参考，按宿主数据模型与 UI 重写本机项目库、分集剧本/分镜草稿和 OpenAI 兼容文本生成；创作页显示所需署名与上游链接。没有迁入桌面画布、3D 导演台或其 AI 插件/模型依赖。 |
 | [flutter_js](https://pub.dev/packages/flutter_js) | `0.8.7`（`pubspec.lock`） | MIT，Copyright © 2019 Ábner Oliveira | `lib/features/reading/book/analyzer/js_runtime_native.dart` | 为 Legado `@js:` / `<js>` 书源规则提供原生同步 JS 执行；本地适配仅开放 `result`、`src`、`baseUrl` 与 `jsLib` 上下文，运行默认关闭并由用户选择启用。 |
 | [PapyrusReader/reader](https://github.com/PapyrusReader/reader) | `fa667ae96c64e2d1d80c06e83d326265673abc75`（development，`pubspec.lock`） | AGPL-3.0，上游 `LICENSE` | 根依赖 `papyrus_reader`；宿主入口和持久化适配位于 `lib/features/reading/local_library/` | 使用其独立 EPUB 2/3 与 PDF 阅读引擎、目录/排版控制和跨格式 locator；不接入 Papyrus 客户端的账号、同步服务和书目 relay。上游 `assets/epub_worker.NOTICES` 随依赖保留。 |
+| [TypeDreamMoon/DreamMangaReader](https://github.com/TypeDreamMoon/DreamMangaReader) | `a162c2c7634957be67beb64d8040e03e7cfba44b`（main，检索参考） | MIT，仓库 `LICENSE` | `lib/features/reading/local_library/local_text_*` | 未复制其应用或脚本源引擎；按其本地小说支持场景，在现有本地书架加入 TXT 导入、UTF-8/UTF-16/GBK 解码及阅读位置保存。解码使用宿主已有 `enough_convert`。 |
 
 纯 Flutter 依赖 `ffmpeg_kit_flutter_new_min_gpl` 由 `pubspec.lock` 锁定；其 GPL 许可随 Pub 包发布。WebDAV、直播账号、站源服务和 NAS 地址均由用户提供。项目未迁入任何源仓库中的签名密钥或服务端凭据。
 

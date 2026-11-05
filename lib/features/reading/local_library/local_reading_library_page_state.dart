@@ -4,6 +4,8 @@ import 'package:dashboard/features/reading/local_library/local_reading_library_p
 import 'package:dashboard/features/reading/local_library/local_reading_library_repository.dart';
 import 'package:dashboard/features/reading/local_library/local_reading_record.dart';
 import 'package:dashboard/features/reading/local_library/local_reading_reader_page.dart';
+import 'package:dashboard/features/reading/local_library/local_text_reading_progress_repository.dart';
+import 'package:dashboard/features/reading/local_library/local_text_reader_page.dart';
 import 'package:dashboard/features/reading/local_library/reader_session_repository.dart';
 import 'package:dashboard/features/shared/ui/module_page_scaffold.dart';
 import 'package:file_picker/file_picker.dart';
@@ -41,7 +43,7 @@ class LocalReadingLibraryPageState extends State<LocalReadingLibraryPage> {
     try {
       final files = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: const ['epub', 'pdf'],
+        allowedExtensions: const ['epub', 'pdf', 'txt'],
       );
       if (files.isEmpty || !mounted) return;
       await _importService.importFile(files.first);
@@ -64,9 +66,10 @@ class LocalReadingLibraryPageState extends State<LocalReadingLibraryPage> {
 
   Future<void> _open(LocalReadingRecord record) async {
     try {
-      await Navigator.of(
-        context,
-      ).push<void>(LocalReadingReaderPage.route(record: record));
+      final route = record.format == 'txt'
+          ? LocalTextReaderPage.route(record: record)
+          : LocalReadingReaderPage.route(record: record);
+      await Navigator.of(context).push<void>(route);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -99,6 +102,7 @@ class LocalReadingLibraryPageState extends State<LocalReadingLibraryPage> {
       await _fileStore.deleteFile(record.path);
       await _repository.remove(record.id);
       await ReaderSessionRepository().clear(record.id);
+      await LocalTextReadingProgressRepository().clear(record.id);
       await _load();
     } catch (error) {
       if (mounted) {
@@ -120,7 +124,7 @@ class LocalReadingLibraryPageState extends State<LocalReadingLibraryPage> {
       title: '电子书与教材',
       actions: [
         IconButton(
-          tooltip: '导入 EPUB 或 PDF',
+          tooltip: '导入 EPUB、PDF 或 TXT',
           onPressed: _importing ? null : _importDocument,
           icon: _importing
               ? const SizedBox.square(
@@ -177,7 +181,7 @@ class LocalReadingLibraryPageState extends State<LocalReadingLibraryPage> {
         children: [
           const Icon(Icons.menu_book_outlined, size: 48),
           const SizedBox(height: 12),
-          const Text('导入本地 EPUB 电子书或 PDF 教材，阅读位置和批注会保存在本机。'),
+          const Text('导入 EPUB、PDF 或 TXT 电子书与教材，阅读位置和批注会保存在本机。'),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _importDocument,

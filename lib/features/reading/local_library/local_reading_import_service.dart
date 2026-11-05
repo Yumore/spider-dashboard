@@ -22,8 +22,8 @@ class LocalReadingImportService {
         .extension(file.name)
         .replaceFirst('.', '')
         .toLowerCase();
-    if (format != 'epub' && format != 'pdf') {
-      throw const FormatException('只支持 EPUB 和 PDF 文件。');
+    if (format != 'epub' && format != 'pdf' && format != 'txt') {
+      throw const FormatException('只支持 EPUB、PDF 和 TXT 文件。');
     }
     final id =
         '${DateTime.now().microsecondsSinceEpoch}-${_random.nextInt(1 << 32)}';
