@@ -13,7 +13,7 @@ def hasReleaseSigning = ['keyAlias', 'keyPassword', 'storeFile', 'storePassword'
     .every { signingProperties.getProperty("config.$it") }
 
 android {
-    namespace 'com.nsapp.dashboard'
+    namespace 'com.yumore.spiderx.flutter'
     compileSdk flutter.compileSdkVersion
     ndkVersion providers.gradleProperty('dashboardNdkVersion').getOrElse(flutter.ndkVersion)
 
@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        applicationId 'com.nsapp.dashboard'
+        applicationId 'com.yumore.spiderx.flutter'
         minSdk 23
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
