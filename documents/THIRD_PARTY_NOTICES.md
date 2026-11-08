@@ -1,6 +1,6 @@
 # 第三方源码与许可记录
 
-更新日期：2026-11-05
+更新日期：2026-11-08
 
 本工程根许可证为 GNU AGPL-3.0。表内提交号界定迁移的上游快照；仓库未提供项目级 LICENSE 的来源按用户明确确认的复用授权处理。上游许可证、版权声明和随源码提供的第三方许可证保留在对应目录。
 
@@ -22,6 +22,7 @@
 | [flutter_js](https://pub.dev/packages/flutter_js) | `0.8.7`（`pubspec.lock`） | MIT，Copyright © 2019 Ábner Oliveira | `lib/features/reading/book/analyzer/js_runtime_native.dart` | 为 Legado `@js:` / `<js>` 书源规则提供原生同步 JS 执行；本地适配仅开放 `result`、`src`、`baseUrl` 与 `jsLib` 上下文，运行默认关闭并由用户选择启用。 |
 | [PapyrusReader/reader](https://github.com/PapyrusReader/reader) | `fa667ae96c64e2d1d80c06e83d326265673abc75`（development，`pubspec.lock`） | AGPL-3.0，上游 `LICENSE` | 根依赖 `papyrus_reader`；宿主入口和持久化适配位于 `lib/features/reading/local_library/` | 使用其独立 EPUB 2/3 与 PDF 阅读引擎、目录/排版控制和跨格式 locator；不接入 Papyrus 客户端的账号、同步服务和书目 relay。上游 `assets/epub_worker.NOTICES` 随依赖保留。 |
 | [TypeDreamMoon/DreamMangaReader](https://github.com/TypeDreamMoon/DreamMangaReader) | `a162c2c7634957be67beb64d8040e03e7cfba44b`（main，检索参考） | MIT，仓库 `LICENSE` | `lib/features/reading/local_library/local_text_*` | 未复制其应用或脚本源引擎；按其本地小说支持场景，在现有本地书架加入 TXT 导入、UTF-8/UTF-16/GBK 解码及阅读位置保存。解码使用宿主已有 `enough_convert`。 |
+| [ben-milanko/dart-pdf](https://github.com/ben-milanko/dart-pdf) / [pdf_document](https://pub.dev/packages/pdf_document/versions/15.0.0) / [pdf_graphics](https://pub.dev/packages/pdf_graphics/versions/15.0.0) | `pdf_document 15.0.0`、`pdf_graphics 15.0.0`、传递依赖 `pdf_cos 15.0.0`（`pubspec.lock`） | Apache-2.0（三个包；许可文本 `documents/third_party/DartPDF-Apache-2.0.txt`） | `lib/features/reading/pdf_tools/`、`pubspec.yaml` | 纯 Dart 接入本机 PDF 页数/元数据/文本层检查与按序合并；限制输入大小、页数和预览字符，不含 OCR。未迁入上游完整 viewer/editor 应用；Web 线程行为与真实 PDF 样本仍待运行验收。 |
 
 纯 Flutter 依赖 `ffmpeg_kit_flutter_new_min_gpl` 由 `pubspec.lock` 锁定；其 GPL 许可随 Pub 包发布。WebDAV、直播账号、站源服务和 NAS 地址均由用户提供。项目未迁入任何源仓库中的签名密钥或服务端凭据。
 

@@ -7,6 +7,7 @@ import 'package:dashboard/features/reading/easymygo/easymygo_page.dart';
 import 'package:dashboard/features/reading/eso/eso_page.dart';
 import 'package:dashboard/features/reading/flutterebook/presentation/pages/home/feedbooks_home_page.dart';
 import 'package:dashboard/features/reading/local_library/local_reading_library_page.dart';
+import 'package:dashboard/features/reading/pdf_tools/pdf_tools_page.dart';
 import 'package:dashboard/features/reading/reading_web_page.dart';
 import 'package:dashboard/features/reading/zhihu_demo/zhihu_demo_page.dart';
 import 'package:dashboard/features/shared/ui/content_entry.dart';
@@ -29,6 +30,14 @@ final List<ContentEntrySection> readingEntryCatalog = [
         icon: Icons.menu_book_outlined,
         accent: ContentAccents.reading,
         builder: (_) => const LocalReadingLibraryPage(),
+      ),
+      ContentEntry(
+        id: 'pdf-tools',
+        title: 'PDF 解析与合并',
+        subtitle: '本地读取页数和文本 · 按顺序合并多个 PDF',
+        icon: Icons.picture_as_pdf_outlined,
+        accent: ContentAccents.reading,
+        builder: (_) => const PdfToolsPage(),
       ),
       ContentEntry(
         id: 'easymygo',

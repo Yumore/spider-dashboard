@@ -139,6 +139,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.0.1"
+  bidi:
+    dependency: transitive
+    description:
+      name: bidi
+      sha256: "77f475165e94b261745cf1032c751e2032b8ed92ccb2bf5716036db79320637d"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.0.13"
   bonsoir:
     dependency: transitive
     description:
@@ -1796,6 +1804,30 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.3.0"
+  pdf_cos:
+    dependency: transitive
+    description:
+      name: pdf_cos
+      sha256: "0af2ff38e1d22f20fd6b8430f9077c1d94d702105f0c1979d3ff5e3506612ce8"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "15.0.0"
+  pdf_document:
+    dependency: "direct main"
+    description:
+      name: pdf_document
+      sha256: "2c54177994eaacecf430b87afc9c12b03bfdc94cc07ea6eaa192eec20dd784c1"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "15.0.0"
+  pdf_graphics:
+    dependency: "direct main"
+    description:
+      name: pdf_graphics
+      sha256: "92ac07f90edf05bbabaead013bed056d47105014ee757f5293e4be2b7310c1ca"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "15.0.0"
   pdfium_dart:
     dependency: transitive
     description:

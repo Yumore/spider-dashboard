@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dashboard/features/shared/ui/content_status.dart';
 import 'package:dashboard/features/shared/ui/module_page_scaffold.dart';
 import 'package:dashboard/features/short_drama/creator/ai_creator_client.dart';
+import 'package:dashboard/features/short_drama/creator/creator_agent_workflow.dart';
 import 'package:dashboard/features/short_drama/creator/creator_page.dart';
 import 'package:dashboard/features/short_drama/creator/creator_project.dart';
 import 'package:dashboard/features/short_drama/creator/creator_repository.dart';
@@ -13,6 +14,9 @@ import 'package:url_launcher/url_launcher.dart';
 class CreatorPageState extends State<CreatorPage> {
   final CreatorRepository _repository = CreatorRepository();
   final AiCreatorClient _aiClient = AiCreatorClient();
+  late final CreatorAgentWorkflow _agentWorkflow = CreatorAgentWorkflow(
+    _aiClient,
+  );
   final Map<String, TextEditingController> _sectionControllers =
       <String, TextEditingController>{};
   final TextEditingController _titleController = TextEditingController();
@@ -373,6 +377,69 @@ class CreatorPageState extends State<CreatorPage> {
     }
   }
 
+  Future<void> _runAgentWorkflow(String section) async {
+    final current = _selected;
+    if (current == null || _generating) return;
+    final target = _sectionControllers[section];
+    if (target == null) return;
+    if (target.text.trim().isNotEmpty) {
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('替换当前草稿？'),
+          content: Text('Agent 的草稿会替换“$section”当前文本。请先确认已保存重要内容。'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('保留当前内容'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('继续运行'),
+            ),
+          ],
+        ),
+      );
+      if (replace != true || !mounted) return;
+    }
+    if (_configuredApiKey == null || _configuredApiKey!.isEmpty) {
+      await _configureAi();
+    }
+    if (!mounted) return;
+    final apiKey = _configuredApiKey;
+    if (apiKey == null || apiKey.isEmpty) return;
+
+    final project = current.copyWith(
+      title: _projectTitleController.text.trim(),
+      sections: <String, String>{
+        for (final entry in _sectionControllers.entries)
+          entry.key: entry.value.text,
+      },
+    );
+    setState(() => _generating = true);
+    try {
+      final draft = await _agentWorkflow.createDraft(
+        project: project,
+        targetSection: section,
+        baseUrl: _baseUrlController.text,
+        model: _modelController.text,
+        apiKey: apiKey,
+      );
+      final controller = _sectionControllers[section];
+      if (controller == null || !mounted) return;
+      controller.text = draft;
+      _onSectionChanged();
+      final saved = await _saveProject(showMessage: false);
+      if (mounted) {
+        _message(saved ? 'Agent 草稿已生成并保存' : 'Agent 草稿已生成，但本机保存失败');
+      }
+    } catch (error) {
+      if (mounted) _message('Agent 工作流失败：$error');
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
   String _promptFor(String section, String kind) {
     if (section.contains('人物')) return '，包含目标、性格、外形和角色关系';
     if (section.contains('大纲')) return '，按可执行的章节/分集结构列出起承转合和结尾悬念';
@@ -503,6 +570,13 @@ class CreatorPageState extends State<CreatorPage> {
                                 ),
                               )
                             : const Icon(Icons.auto_awesome_outlined),
+                      ),
+                      IconButton.filledTonal(
+                        tooltip: '运行 AI Agent 工作流',
+                        onPressed: _generating
+                            ? null
+                            : () => _runAgentWorkflow(entry.key),
+                        icon: const Icon(Icons.account_tree_outlined),
                       ),
                     ],
                   ),

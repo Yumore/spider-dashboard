@@ -17,7 +17,45 @@ class AiCreatorClient {
     required String systemPrompt,
     required String userPrompt,
   }) async {
+    final decoded = await complete(
+      baseUrl: baseUrl,
+      model: model,
+      apiKey: apiKey,
+      messages: <Map<String, dynamic>>[
+        <String, dynamic>{'role': 'system', 'content': systemPrompt},
+        <String, dynamic>{'role': 'user', 'content': userPrompt},
+      ],
+    );
+    final choices = decoded['choices'];
+    if (choices is! List || choices.isEmpty || choices.first is! Map) {
+      throw const FormatException('模型服务没有返回创作内容');
+    }
+    final message = (choices.first as Map)['message'];
+    if (message is! Map) {
+      throw const FormatException('模型服务响应缺少 message');
+    }
+    final content = _textFromContent(message['content']);
+    if (content.trim().isEmpty) {
+      throw const FormatException('模型服务返回了空内容');
+    }
+    return content.trim();
+  }
+
+  Future<Map<String, dynamic>> complete({
+    required String baseUrl,
+    required String model,
+    required String apiKey,
+    required List<Map<String, dynamic>> messages,
+    List<Map<String, Object>>? tools,
+  }) async {
     final uri = _completionUri(baseUrl);
+    final payload = <String, Object>{
+      'model': model,
+      'temperature': 0.75,
+      'messages': messages,
+      if (tools != null && tools.isNotEmpty) 'tools': tools,
+      if (tools != null && tools.isNotEmpty) 'tool_choice': 'auto',
+    };
     final response = await _client
         .post(
           uri,
@@ -26,14 +64,7 @@ class AiCreatorClient {
             'content-type': 'application/json',
             'accept': 'application/json',
           },
-          body: jsonEncode(<String, Object>{
-            'model': model,
-            'temperature': 0.75,
-            'messages': <Map<String, String>>[
-              <String, String>{'role': 'system', 'content': systemPrompt},
-              <String, String>{'role': 'user', 'content': userPrompt},
-            ],
-          }),
+          body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 90));
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -46,28 +77,17 @@ class AiCreatorClient {
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('模型服务响应格式无效');
     }
-    final choices = decoded['choices'];
-    if (choices is! List || choices.isEmpty || choices.first is! Map) {
-      throw const FormatException('模型服务没有返回创作内容');
-    }
-    final message = (choices.first as Map)['message'];
-    if (message is! Map) {
-      throw const FormatException('模型服务响应缺少 message');
-    }
-    final content = message['content'];
-    final text = content is String
-        ? content
-        : content is List
-        ? content
-              .whereType<Map>()
-              .map((part) => part['text']?.toString() ?? '')
-              .where((part) => part.isNotEmpty)
-              .join('\n')
-        : '';
-    if (text.trim().isEmpty) {
-      throw const FormatException('模型服务返回了空内容');
-    }
-    return text.trim();
+    return decoded;
+  }
+
+  String _textFromContent(Object? content) {
+    if (content is String) return content;
+    if (content is! List) return '';
+    return content
+        .whereType<Map>()
+        .map((part) => part['text']?.toString() ?? '')
+        .where((part) => part.isNotEmpty)
+        .join('\n');
   }
 
   Uri _completionUri(String baseUrl) {

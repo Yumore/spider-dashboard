@@ -1,6 +1,6 @@
-# 开源内容工程能力集成记录（2026-11-05）
+# 开源内容工程能力集成记录（2026-11-08）
 
-日期：2026-11-05
+日期：2026-11-08
 
 ## 范围与决策
 
@@ -183,3 +183,53 @@
 ### 本轮验证边界
 
 - `dart format`：本次涉及文件格式化完成；`flutter analyze lib/features/reading/local_library lib/features/reading/reading_entry_catalog.dart`：通过，无问题。未运行测试、构建或设备 UI 验证。不同 TXT 编码的真实样本、超大文本占用和阅读位置恢复仍需运行时验收；TXT 当前整本读入内存。
+
+## 2026-11-08 GitHub 28 类 Flutter 工程检索与能力补齐
+
+按用户给出的 1–28 顺序搜索候选、核对许可证和运行依赖，再与现有目录、服务层和入口逐项对照。当前工程已覆盖大部分内容源、播放器、阅读器、直播、采集和创作业务；本次补入本地 PDF 文本层解析/合并，以及 AI 创作区块的受控工具工作流。候选仓库没有被直接挂成路径链接或第二个应用。
+
+| 序号 | 类别 | 搜索候选 | 决策与业务结果 |
+| --- | --- | --- | --- |
+| 1 | 小说 | [DreamMangaReader](https://github.com/TypeDreamMoon/DreamMangaReader)、[leetomlee123/book](https://github.com/leetomlee123/book) | Legado 源、ESO/EasyMyGo 与本机 TXT/EPUB/PDF 书架已有真实搜索、目录、阅读和进度链路；沿用现有模块，不重复导入另一个小说客户端或不兼容的脚本源协议。 |
+| 2 | 漫画 | [Mangayomi](https://github.com/kodjodevf/mangayomi)、[JHenTai](https://github.com/jiangtian616/JHenTai) | PicaComic、Pixez、Haka 等来源和阅读器已接入。Mangayomi 使用自己的扩展运行时；JHenTai 是另一套成人漫画客户端，都不作为可直接装入的源清单或第二套 UI。 |
+| 3 | 动漫 | [Mangayomi](https://github.com/kodjodevf/mangayomi)、[DreamMangaReader](https://github.com/TypeDreamMoon/DreamMangaReader) | Kazumi XPath、AnimeOne、TakoPlay、AnimeTrace 已有独立来源链路；不导入需要额外解释器的脚本而冒称兼容。 |
+| 4 | 视频 | [media-kit](https://github.com/media-kit/media-kit)、[pro_video_player](https://github.com/vitormf/pro_video_player) | 当前统一播放器已依赖 media-kit 并用于影视、短视频和本机媒体；不叠加功能重复的第二个播放器后端。 |
+| 5 | 影视 | [Cuipi TV](https://github.com/macro233/cuipi_tv)、[Freeplix](https://github.com/iamnabink/Freeplix) | 已有 TVBox/CMS 配置搜索、详情、选集和统一播放；不重复迁入另一套电影目录与播放 UI。 |
+| 6 | 短剧 | [Hongguo](https://github.com/czgyz/hongguo)、[Zhenguo](https://github.com/youniube/zhenguo-app) | 两来源的短剧目录、站源、播放器和本机项目工作流已在短剧模块运行；本次不再复制客户端。 |
+| 7 | 直播 | [PureLive](https://github.com/wzgrx/PureLive)、[OpenIPTV](https://github.com/DR-89/openiptv) | PureLive、SimpleLive、MyTV 与 Twitch VOD/Clip 已接入；OpenIPTV 的播放和源导入与现有直播聚合重复，不再引入新的客户端和依赖树。 |
+| 8 | AI 漫剧 | [Toonflow](https://github.com/HBAI-Ltd/Toonflow-app)、[Reveric](https://github.com/looplj/reveric) | 本机创作模块已有设定、剧本和分镜提示；Toonflow 是另有 Bun/TypeScript 后端、桌面与可选模型服务的应用，不作为 Flutter 客户端复制。 |
+| 9 | AI 工作台 | [GidarAI](https://github.com/kasifdeveloper/GidarAI) | GidarAI 是多模型 Flutter 聊天客户端；宿主当前提供小说/短剧创作 AI 能力。本次为这些创作区块加入显式工具调用工作流，不另嵌一套通用聊天 UI。 |
+| 10 | 数字人 | [Mynah](https://github.com/honwee/mynah) | 候选是 Go/WebRTC 服务和 Python 模型 worker，需要自托管端点及 GPU/模型环境；没有本机服务配置，不迁入该服务栈。 |
+| 11 | 书籍 | [Papyrus Reader](https://github.com/PapyrusReader/reader)、[Papyrus client](https://github.com/PapyrusReader/client) | 独立阅读器与本机书架已集成；需要云同步/书目 relay 的客户端后端不在本次接入范围。 |
+| 12 | 电子书 | [Velora](https://github.com/blueokanna/velora)、[Papyrus Reader](https://github.com/PapyrusReader/reader) | EPUB/PDF 与 TXT 本机阅读已可用。Velora 的 MOBI/AZW3/CBZ 等扩展格式使用 Rust 核心与 FRB，在线来源也与现有源规则重叠；不改变平台构建链。 |
+| 13 | 教材 | [Swipe Book](https://github.com/sajanpoudel/Swipebook)、[Papyrus Reader](https://github.com/PapyrusReader/reader) | 本机 EPUB/PDF/TXT 书架提供目录、阅读进度、批注/笔记；不引入依赖 Firebase 的课程后端，也不随包提供教材内容。 |
+| 14 | PDF 解析 | [ben-milanko/dart-pdf](https://github.com/ben-milanko/dart-pdf) | 使用 `pdf_document` 与 `pdf_graphics` 15.0.0 接入本地文件解析，读取页数、标题、作者和已有文本层；文本预览上限 300 页或 50,000 字，不含 OCR。 |
+| 15 | PDF 合成 | [ben-milanko/dart-pdf](https://github.com/ben-milanko/dart-pdf) | 使用同套纯 Dart `PdfMerger` 按用户排序合并 2–20 个文件，并通过系统文件选择器保存新 PDF；不上传文件，也不依赖平台通道。 |
+| 16 | 升级 | [upgrader](https://github.com/larryaasen/upgrader)、[app_updater](https://github.com/mantreshkhurana/app_updater) | 设置页已有版本检查和平台自更新入口；不叠加以应用商店提示为主的新插件。各平台实际更新来源仍由现有平台实现和发布地址决定。 |
+| 17 | 博客 | [rsspresso](https://github.com/iakdis/rsspresso) | ESO RSS 与知乎文章/资讯入口已覆盖订阅和文章阅读。rsspresso 是 GPL-3.0 Flutter RSS 客户端，能力重叠，不复制整套订阅 UI。 |
+| 18 | 爬虫 | [scrapy.dart](https://github.com/sachaarbonel/scrapy.dart) | 工程现有爬虫工作台已具备任务、请求、页面规则和结果导出链路；Scrapy.dart 框架不替代宿主数据模型，不再引入第二套采集抽象。 |
+| 19 | Agent 模版 | [flutter-ai-coding-starter-kit](https://github.com/SleyAI/flutter-ai-coding-starter-kit) | 这是面向开发流程的 Flutter 模板，不是用户产品功能；不把其项目脚手架和代理角色复制进运行时。 |
+| 20 | fiction/novel | [DreamMangaReader](https://github.com/TypeDreamMoon/DreamMangaReader)、[Velora](https://github.com/blueokanna/velora) | 对应小说搜索、阅读和本机书架已覆盖；无需另建 fiction 子应用。 |
+| 21 | manga/anime | [Mangayomi](https://github.com/kodjodevf/mangayomi)、[JHenTai](https://github.com/jiangtian616/JHenTai) | 对应漫画、动漫源和播放已由 Pica/Pixez/Haka、Kazumi 等入口承担；不复制需各自运行时的扩展。 |
+| 22 | comic/cimoc | [manga-source-index](https://github.com/kuiti/manga-source-index) | 搜索到的是跨阅读器来源索引数据（其中包含 CIMOC 记录），不是 Flutter 客户端或 CIMOC 解析执行器；不把索引 JSON 当作可直接运行的漫画源。 |
+| 23 | video | [media-kit](https://github.com/media-kit/media-kit) | 统一媒体播放能力已集成并复用于影视、短视频、本地视频和直播；无新增播放器依赖。 |
+| 24 | drama | [Hongguo](https://github.com/czgyz/hongguo)、[Zhenguo](https://github.com/youniube/zhenguo-app) | 短剧来源、详情、播放与创作工作台已在对应业务域；没有重复客户端。 |
+| 25 | live | [PureLive](https://github.com/wzgrx/PureLive)、[dart_simple_live](https://github.com/xiaojiulala/dart_simple_live) | 多平台直播、IPTV、电视专版、回看与统一入口已接入；未增加重叠直播源聚合器。 |
+| 26 | spider/crawler | [scrapy.dart](https://github.com/sachaarbonel/scrapy.dart) | 复用宿主爬虫任务、请求和结果解析，不接入重复框架或预置采集源。 |
+| 27 | agent/workflow | [dart_agent_core](https://github.com/memex-lab/dart_agent_core) 2.1.9 | MIT Agent 运行时因依赖图冲突暂未加入：它经 `aws_common` 要求 `http2` 2.x，现有 PureLive 网络依赖需要 `http2` 3.x；不强制覆盖直播依赖。本次在宿主 AI 创作客户端中实现只开放 `read_project_context` 与 `submit_draft` 的有限 OpenAI 工具循环，最多 5 轮，提交结果由页面保存。 |
+| 28 | NSFW/Hentai | [JHenTai](https://github.com/jiangtian616/JHenTai)、[PicaComic](https://github.com/wgh136/PicaComic) | PicaComic 来源层已含 E-Hentai、Hitomi、nhentai 与 JM 等服务；JHenTai 同为 Apache-2.0 Flutter 客户端并与现有来源/阅读 UI 重叠，不再导入第二套客户端或打包源内容。 |
+
+### 新增能力与边界
+
+- “PDF 解析与合并”从阅读目录打开。PDF 内容经纯 Dart 解析器在本机读取；原生平台使用 `compute` 工作隔离，Web 上 `compute` 可能退化到页面事件循环，因此 Web 限单文件 24 MB、合并总量 48 MB；原生平台限制单文件 100 MB、合并总量 200 MB，最多合并 20 个文件。实际内存占用取决于 PDF 结构与设备；超限输入会拒绝处理。
+- 文本提取只提取 PDF 已有的文本层。扫描页没有 OCR；损坏、加密或当前解析器不支持的文件会显示失败。合并结果保持用户选择的顺序；不声称所有表单、签名、文档级附件或 PDF 厂商扩展均可无损兼容。
+- AI 创作每个区块旁增加 Agent 工作流入口。模型在收到项目标题、类型和现有区块内容后，先调用 `read_project_context` 再提交 `submit_draft`；Agent 不开放任意网络、文件系统或其他应用工具，模型请求仍通过用户配置的服务地址发送。服务端须支持 OpenAI 兼容的 function/tool calling。草稿随后由现有本机项目保存逻辑写入，用户可在编辑器检查和修改；API Key 仍只存当前页面运行内存，不写入项目或偏好。
+- `dart_agent_core` 因 `http2` 主版本冲突未加入依赖，也未复制其源代码。本地 Agent 流程使用已有 `http` 和 OpenAI 兼容接口，并限制工具名、轮数、上下文和草稿长度；不包括计划、子 Agent、持久化记忆、MCP 或多供应商抽象。
+- 新依赖为 `pdf_document 15.0.0`、`pdf_graphics 15.0.0`，传递依赖 `pdf_cos 15.0.0`；均 Apache-2.0，并已锁入 `pubspec.lock`。仓库 SDK 的完整应用没有迁入。上游来源、包版本、许可证和本地适配位置见 `documents/THIRD_PARTY_NOTICES.md`。
+
+### 本次复核
+
+- `flutter pub get`：成功，锁定上述 PDF 依赖；没有覆盖 PureLive 的 `http2` 版本。
+- `dart format`：覆盖本次新建/修改的 8 个 Dart 文件，格式化完成。
+- `flutter analyze`：覆盖 PDF 工具页、阅读入口与 AI 创作文件，通过，无问题。
+- 未运行测试、构建 APK/Web/桌面包、启动实际 PDF 样例、接入模型服务或设备 UI 验收；不得据此认定 PDF 样本兼容、AI 服务可达或界面已在设备验证。
