@@ -1,0 +1,16 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="Spider Worker"
+    Manufacturer="Yumore"
+    Version="$(var.AppVersion)"
+    UpgradeCode="6E1DF2D8-A7E8-47C5-9B81-46793A92BF01">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Spider Worker is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Spider Worker" />
+    </StandardDirectory>
+
+    <Files Include="$(var.PayloadDir)\**" Directory="INSTALLFOLDER" />
+  </Package>
+</Wix>

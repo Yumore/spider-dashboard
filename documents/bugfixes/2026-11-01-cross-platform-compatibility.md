@@ -1,4 +1,4 @@
-# 跨平台兼容改造与发布打包（2026-11-01）
+# 跨平台兼容改造与发布打包（更新于 2026-11-08）
 
 ## 2026-11-01 打包脚本与兼容补充
 
@@ -167,9 +167,21 @@ Windows 使用 `tool/package.ps1 <目标>`；也可在工程根目录运行 `dar
 3. 若 Web 端 SQLite worker/wasm 未能加载（文件缺失、隐私模式禁用 IndexedDB），启动不会崩溃，但依赖 `ComicHistoryProvider`/`ComicDownloadProvider` 的旧版页面会抛空值错误；此时仅内容中心与各模块页可用。
 4. 未做设备级 UI 走查（按 AGENTS 约定不主动构建 APK）；桌面/鸿蒙只做到"代码与依赖就绪 + 本机可验证部分验证"。
 
-## 各平台打包入口
+## 2026-11-08 各平台发布产物
 
-请使用上方 `tool/package.dart` 或对应 shell/PowerShell 包装脚本。脚本执行后保留 Flutter 的标准输出目录：Android `build/app/outputs/flutter-apk/`、iOS `build/ios/ipa/`、macOS `build/macos/Build/Products/Release/`、Windows `build/windows/`、Linux `build/linux/`、Web `build/web/`、OHOS `ohos/entry/build/default/outputs/`。
+请使用上方 `tool/package.dart` 或对应 shell/PowerShell 包装脚本。Android、iOS、macOS、Windows 和 Linux 的发布文件统一写入工程根目录 `dist/`，名称如下：
+
+| 平台 | 产物 | 说明 |
+| --- | --- | --- |
+| Android | `dist/spider-worker.apk` | 由 Flutter release APK 复制并统一命名 |
+| iOS | `dist/spider-worker.ipa` | 由 Flutter release IPA 复制并统一命名；需 macOS、Xcode 和有效签名配置 |
+| Windows | `dist/spider-worker.exe`、`dist/spider-worker.msi` | EXE 是包含完整 Flutter Release 目录的 Inno Setup 安装程序；MSI 使用 WiX 5 或更新版本 |
+| macOS | `dist/spider-worker.dmg` | DMG 内含 `.app` 和 `/Applications` 快捷方式；需 macOS 的 `hdiutil`/`ditto` |
+| Linux | `dist/spider-worker.deb` | 包含完整 Flutter bundle、启动项和应用图标；需 `dpkg`、`dpkg-deb` 与 `cp` |
+
+Web 静态站点仍输出到 `build/web/`，OHOS HAP 仍输出到 `ohos/entry/build/default/outputs/`。Windows 打包前需安装 Inno Setup 6 和 WiX 5+ CLI；如工具不在 `PATH`，可通过 `ISCC_BIN`、`WIX_BIN` 指定可执行文件。`dist/` 是本地产物目录，已加入 Git 忽略。`--dry-run` 会显示预期产物，不会构建或检查本机工具。
+
+Windows 桌面发布包会把 runner、Flutter 引擎 DLL、插件 DLL 和 `data/` 一并安装，避免只发单个 runner EXE 导致应用无法启动。macOS DMG 与 Linux DEB 也封装完整运行目录。未执行本机打包；这次改动只更新命名和打包流程，不证明任一平台已构建、签名或完成安装运行验收。
 
 ## 独立审查与修复（2026-10-18）
 
