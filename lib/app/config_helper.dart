@@ -14,7 +14,7 @@ class ConfigHelper {
   }
 
   static void setThemeMode(int value) {
-    prefs.setInt("themeMode", 0);
+    prefs.setInt("themeMode", value);
   }
 
   /// APP主题颜色

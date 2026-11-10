@@ -34,7 +34,7 @@ class AppTheme with ChangeNotifier {
     _themeMode = AppTheme.themeModes.values.toList()[index];
     _themeModeName = AppTheme.themeModes.keys.toList()[index];
     notifyListeners();
-    ConfigHelper.setAppTheme(index);
+    ConfigHelper.setThemeMode(index);
   }
 
   void showThemeModeDialog(BuildContext context) {
