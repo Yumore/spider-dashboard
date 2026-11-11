@@ -1,19 +1,12 @@
 package com.yumore.dashboard.shortdrama.platform.media
 
 import android.app.Activity
-import com.arthenica.mobileffmpeg.Config
-import com.mobile.ffmpeg.FFmpeg
-import com.mobile.ffmpeg.Statistics
-import com.mobile.ffmpeg.StatisticsCallback
+import com.antonkarpenko.ffmpegkit.FFmpegKit
 import java.util.concurrent.ConcurrentHashMap
 
 class ShortDramaFfmpegRunner(private val activity: Activity) {
     private val jobs = ConcurrentHashMap<String, ShortDramaFfmpegJob>()
-    private val activeJob = ThreadLocal<ShortDramaFfmpegJob?>()
     private val probeParser = ShortDramaFfmpegProbeParser()
-
-    @Volatile
-    private var callbacksReady = false
 
     fun run(id: String, arguments: List<String>, onComplete: (Int, Boolean) -> Unit) {
         val job = ShortDramaFfmpegJob(id)
@@ -34,7 +27,7 @@ class ShortDramaFfmpegRunner(private val activity: Activity) {
         val job = jobs[id] ?: return
         if (job.running) {
             job.cancelled = true
-            FFmpeg.cancel()
+            job.sessionId?.let(FFmpegKit::cancel)
         }
     }
 
@@ -44,40 +37,29 @@ class ShortDramaFfmpegRunner(private val activity: Activity) {
         onComplete: (ShortDramaFfmpegJob, Int) -> Unit,
     ) {
         jobs[job.id] = job
-        Thread {
-            val exitCode = runCatching {
-                ensureCallbacks()
-                activeJob.set(job)
-                try {
-                    FFmpeg.execute(arguments.toTypedArray())
-                } finally {
-                    activeJob.remove()
-                }
-            }.getOrElse { -1 }
+        runCatching {
+            FFmpegKit.executeWithArgumentsAsync(
+                arguments.toTypedArray(),
+                { session ->
+                    val exitCode = session.returnCode?.value ?: -1
+                    job.running = false
+                    jobs.remove(job.id, job)
+                    activity.runOnUiThread { onComplete(job, exitCode) }
+                },
+                { log ->
+                    synchronized(job.log) { job.log.append(log.message).append('\n') }
+                },
+                { statistics -> job.timeMs = statistics.time.toLong() },
+            )
+        }.onSuccess { session ->
+            job.sessionId = session.sessionId
+            if (job.cancelled) {
+                FFmpegKit.cancel(session.sessionId)
+            }
+        }.onFailure {
             job.running = false
             jobs.remove(job.id, job)
-            activity.runOnUiThread { onComplete(job, exitCode) }
-        }.start()
-    }
-
-    private fun ensureCallbacks() {
-        if (callbacksReady) return
-        synchronized(this) {
-            if (callbacksReady) return
-            Config.enableLogCallback { message ->
-                val job = activeJob.get()
-                if (job != null) {
-                    synchronized(job.log) { job.log.append(message.text).append('\n') }
-                }
-            }
-            Config.enableStatisticsCallback(object : StatisticsCallback {
-                override fun apply(statistics: Statistics) {
-                    activeJob.get()?.timeMs = statistics.time.toLong()
-                }
-
-                override fun onCancel() = Unit
-            })
-            callbacksReady = true
+            activity.runOnUiThread { onComplete(job, -1) }
         }
     }
 }

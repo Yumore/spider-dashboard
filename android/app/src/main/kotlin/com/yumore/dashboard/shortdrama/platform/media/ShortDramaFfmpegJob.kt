@@ -11,4 +11,7 @@ class ShortDramaFfmpegJob(val id: String) {
 
     @Volatile
     var cancelled = false
+
+    @Volatile
+    var sessionId: Long? = null
 }

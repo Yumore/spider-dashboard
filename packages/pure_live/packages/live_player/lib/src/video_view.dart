@@ -81,7 +81,10 @@ class _LiveVideoViewState extends State<LiveVideoView> {
   /// plays or buffers.
   void _syncWake() {
     final status = widget.session.state.status;
-    final want = widget.keepScreenOn && (status == PlaybackStatus.playing || status == PlaybackStatus.buffering);
+    final want =
+        widget.keepScreenOn &&
+        (status == PlaybackStatus.playing ||
+            status == PlaybackStatus.buffering);
     if (want == _awake) return;
     _awake = want;
     want ? ScreenWake.hold() : ScreenWake.release();
@@ -111,12 +114,14 @@ class _LiveVideoViewState extends State<LiveVideoView> {
 
   void _scheduleResize(VideoController controller, Size size, double ratio) {
     if (size == _lastSize || size.isEmpty) return;
-    final force = _lastSize == null;
     _lastSize = size;
     _resize?.cancel();
     _resize = Timer(const Duration(milliseconds: 180), () {
       unawaited(
-        controller.setSize(width: (size.width * ratio).round(), height: (size.height * ratio).round(), force: force),
+        controller.setSize(
+          width: (size.width * ratio).round(),
+          height: (size.height * ratio).round(),
+        ),
       );
     });
   }
@@ -124,7 +129,8 @@ class _LiveVideoViewState extends State<LiveVideoView> {
   @override
   Widget build(BuildContext context) {
     final engine = widget.session.engine;
-    if (engine is! MpvEngine) return ColoredBox(color: widget.fill, child: const SizedBox.expand());
+    if (engine is! MpvEngine)
+      return ColoredBox(color: widget.fill, child: const SizedBox.expand());
     final video = Video(
       // VideoState binds player streams in initState. A replacement engine
       // must not inherit the old player's width/height visibility listeners.

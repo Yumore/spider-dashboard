@@ -4,7 +4,7 @@
 
 import 'dart:io';
 
-import 'package:hooks/hooks.dart';
+import 'package:quickjs_hooks/hooks.dart';
 
 import 'code_asset.dart';
 import 'config.dart';

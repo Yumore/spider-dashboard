@@ -34,8 +34,7 @@ MpvPlatform? mpvPlatformOf(TargetPlatform platform) => switch (platform) {
   return (width: width, height: height);
 }
 
-/// The mpv [PlayerEngine] over the media_kit fork in `third_party/` (3.x's
-/// `MediaKitAdapter`, the only engine in v4).
+/// The mpv [PlayerEngine] over the public media_kit API.
 ///
 /// - [MpvEngineConfig.liveProperties] are applied once per player; every
 ///   open sets `hwdec` (software for the session's decoder fallback) and
@@ -43,11 +42,14 @@ MpvPlatform? mpvPlatformOf(TargetPlatform platform) => switch (platform) {
 ///   headers.
 /// - mpv's error log goes through [NativeDiagnosticGate]; the session only
 ///   sees confirmed failures.
-/// - Audio-only mode never reopens: Android turns the controller's video
-///   output off (the fork's `setVideoOutputEnabled`), desktop selects
-///   `vid=no`; Android does not re-send `vid=auto` after an open.
-/// - Windows reports presented frames (the fork's `frameRevision`).
-final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource, VolumeGainControl {
+/// - Audio-only mode never reopens; it disables the mpv video track while
+///   leaving audio playback active.
+final class MpvEngine
+    implements
+        PlayerEngine,
+        PlaybackRate,
+        PlaybackStatsSource,
+        VolumeGainControl {
   new _(
     this.player,
     this.controller,
@@ -58,7 +60,9 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
   }) {
     _bufferingProbe = NativeBufferingProbe(
       read: _readProperty,
-      report: (line) => (onBufferingSnapshot ?? debugPrint)('$line engine=$_diagnosticEngine open=$_diagnosticOpens'),
+      report: (line) => (onBufferingSnapshot ?? debugPrint)(
+        '$line engine=$_diagnosticEngine open=$_diagnosticOpens',
+      ),
     );
     _gate = NativeDiagnosticGate(onError: (error) => _add(EngineError(error)));
     _bind();
@@ -72,13 +76,17 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
     void Function(String)? onBufferingSnapshot,
     @visibleForTesting FutureOr<Player> Function()? createPlayer,
   }) async {
-    final resolved = config ?? MpvEngineConfig(platform: mpvPlatformOf(defaultTargetPlatform) ?? MpvPlatform.linux);
+    final resolved =
+        config ??
+        MpvEngineConfig(
+          platform: mpvPlatformOf(defaultTargetPlatform) ?? MpvPlatform.linux,
+        );
     final id = ++_nextDiagnosticEngine;
     var open = 0;
-    void report(String phase, [int? error]) {
+    void report(String phase) {
       try {
         (onBufferingSnapshot ?? debugPrint)(
-          'mpv lifecycle engine=$id open=$open phase=$phase${error == null ? '' : ' error=$error'}',
+          'mpv lifecycle engine=$id open=$open phase=$phase',
         );
       } on Object {
         /* Diagnostic sinks cannot change playback. */
@@ -87,21 +95,26 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
 
     report('create-request');
     MediaKit.ensureInitialized();
-    final player = await (createPlayer?.call() ?? Player(configuration: const PlayerConfiguration(title: 'Pure Live')));
+    final player =
+        await (createPlayer?.call() ??
+            Player(
+              configuration: const PlayerConfiguration(title: 'Pure Live'),
+            ));
     try {
       final native = player.platform;
       if (native is NativePlayer) {
-        native.lifecycleListener = report;
         report('native-wait');
         await native.waitForPlayerInitialization;
         report('configure-live');
         for (final MapEntry(:key, :value) in resolved.liveProperties.entries) {
-          await native.setPropertyAsync(key, value);
+          await native.setProperty(key, value);
         }
       }
       final probe = mpvProbeValues();
       if (probe != mpvProbeDefaults) {
-        debugPrint('mpv probe override: probesize=${probe.probeSize} analyzeduration=${probe.analyzeDuration}');
+        debugPrint(
+          'mpv probe override: probesize=${probe.probeSize} analyzeduration=${probe.analyzeDuration}',
+        );
       }
       final macos = resolved.platform == MpvPlatform.macos;
       final controller = VideoController(
@@ -109,8 +122,10 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
         configuration: VideoControllerConfiguration(
           vo: resolved.videoOutput,
           hwdec: resolved.preferredHardwareDecoder,
-          enableHardwareAcceleration: !macos && resolved.preferredHardwareDecoder != 'no',
-          androidAttachSurfaceAfterVideoParameters: resolved.customOutput || resolved.androidCompatibility
+          enableHardwareAcceleration:
+              !macos && resolved.preferredHardwareDecoder != 'no',
+          androidAttachSurfaceAfterVideoParameters:
+              resolved.customOutput || resolved.androidCompatibility
               ? null
               : false,
         ),
@@ -148,13 +163,17 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
   @override
   Future<void> setVolumeGainDb(int? decibels) async {
     _roomGainDb = decibels?.clamp(-12, 12);
-    await _setProperty('volume-gain', '${(_roomGainDb ?? config.volumeGainDb).clamp(-12, 12)}');
+    await _setProperty(
+      'volume-gain',
+      '${(_roomGainDb ?? config.volumeGainDb).clamp(-12, 12)}',
+    );
   }
 
   late final NativeDiagnosticGate _gate;
-  final StreamController<EngineEvent> _events = StreamController.broadcast(sync: true);
+  final StreamController<EngineEvent> _events = StreamController.broadcast(
+    sync: true,
+  );
   final List<StreamSubscription<Object?>> _subscriptions = [];
-  VoidCallback? _frameListener;
   late final NativeBufferingProbe _bufferingProbe;
   bool _hasSource = false;
   var _audioOnly = false;
@@ -166,13 +185,11 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
   final void Function(String phase) _trace;
   var _diagnosticOpens = 0;
 
-  bool get _android => config.platform == MpvPlatform.android;
-
   @override
   Stream<EngineEvent> get events => _events.stream;
 
   @override
-  bool get reportsFrames => config.platform == MpvPlatform.windows;
+  bool get reportsFrames => false;
 
   void _add(EngineEvent event) {
     if (!_disposed) _events.add(event);
@@ -183,13 +200,21 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
     _subscriptions
       ..add(
         stream.playing.listen((playing) {
-          _gate.playback(playing: playing, buffering: player.state.buffering, audioOnly: _audioOnly);
+          _gate.playback(
+            playing: playing,
+            buffering: player.state.buffering,
+            audioOnly: _audioOnly,
+          );
           _add(EnginePlaying(playing: playing));
         }),
       )
       ..add(
         stream.buffering.listen((buffering) {
-          _gate.playback(playing: player.state.playing, buffering: buffering, audioOnly: _audioOnly);
+          _gate.playback(
+            playing: player.state.playing,
+            buffering: buffering,
+            audioOnly: _audioOnly,
+          );
           _add(EngineBuffering(buffering: buffering));
           _watchBuffering(buffering);
         }),
@@ -209,24 +234,20 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
       )
       ..add(
         stream.audioParams.listen((params) {
-          if ((params.format?.isNotEmpty ?? false) || (params.sampleRate ?? 0) > 0) _gate.audioFrame();
+          if ((params.format?.isNotEmpty ?? false) ||
+              (params.sampleRate ?? 0) > 0)
+            _gate.audioFrame();
         }),
       )
-      ..add(stream.position.listen((position) => _add(EnginePosition(position))))
-      ..add(stream.duration.listen((duration) => _add(EngineDuration(duration))))
-      ..add(stream.log.listen((log) => _gate.log(log.prefix, log.level, log.text)));
-    if (reportsFrames) {
-      var last = controller.frameRevision.value;
-      void onFrame() {
-        final revision = controller.frameRevision.value;
-        if (revision == last) return;
-        last = revision;
-        _add(const EngineFrame());
-      }
-
-      _frameListener = onFrame;
-      controller.frameRevision.addListener(onFrame);
-    }
+      ..add(
+        stream.position.listen((position) => _add(EnginePosition(position))),
+      )
+      ..add(
+        stream.duration.listen((duration) => _add(EngineDuration(duration))),
+      )
+      ..add(
+        stream.log.listen((log) => _gate.log(log.prefix, log.level, log.text)),
+      );
   }
 
   /// A release build must retain the same bounded, non-identifying stall
@@ -242,7 +263,7 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
       await native.waitForVideoControllerInitializationIfAttached;
       // Reconfiguring a reused decoder can wait on the native core. Keep the
       // UI isolate and the source-open deadline alive while that request runs.
-      await native.setPropertyAsync(name, value);
+      await native.setProperty(name, value);
     }
   }
 
@@ -257,15 +278,23 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
     _gate.beginOpen(decoderStartupWindow: mpvDecoderStartupWindow(media.uri));
     try {
       _trace('configure-open');
-      await _setProperty('hwdec', config.hwdecFor(software: media.decoder == DecoderMode.software));
+      await _setProperty(
+        'hwdec',
+        config.hwdecFor(software: media.decoder == DecoderMode.software),
+      );
       await _setProperty('http-proxy', media.proxyUrl);
-      await _setProperty('volume-gain', '${(_roomGainDb ?? config.volumeGainDb).clamp(-12, 12)}');
+      await _setProperty(
+        'volume-gain',
+        '${(_roomGainDb ?? config.volumeGainDb).clamp(-12, 12)}',
+      );
       await _setExternalAudio(media.audio);
       _trace('load-request');
       await openMpvMediaInput(
         media.uri,
         configure: _setProperty,
-        open: (input) => player.open(Media(input, httpHeaders: media.headers, start: media.start)),
+        open: (input) => player.open(
+          Media(input, httpHeaders: media.headers, start: media.start),
+        ),
       );
     } on Object catch (error, stack) {
       _hasSource = false;
@@ -274,7 +303,9 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
       final classification = NativeDiagnostic.classify(error.toString());
       throw PlayerException(
         message: 'Media open failed: $error',
-        type: classification.type == PlayerErrorType.native ? PlayerErrorType.source : classification.type,
+        type: classification.type == PlayerErrorType.native
+            ? PlayerErrorType.source
+            : classification.type,
         code: classification.code,
         error: error,
         stackTrace: stack,
@@ -311,7 +342,7 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
   Future<String> _readProperty(String name) async {
     final native = player.platform;
     if (_disposed || native is! NativePlayer) return '';
-    return await native.getPropertyAsync(name);
+    return await native.getProperty(name);
   }
 
   @override
@@ -335,7 +366,8 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
   Future<void> seek(Duration position) => player.seek(position);
 
   @override
-  Future<void> setVolume(double volume) => player.setVolume((volume * 100).clamp(0, 100).toDouble());
+  Future<void> setVolume(double volume) =>
+      player.setVolume((volume * 100).clamp(0, 100).toDouble());
 
   /// Sets mpv's `audio-files` to [audio] (or clears it when an earlier open
   /// set one); the option applies to the next file loaded. A URL is appended
@@ -346,22 +378,26 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
     if (audio == null && !_externalAudio) return;
     await _setProperty('audio-files', '');
     _externalAudio = audio != null;
-    if (audio != null) await native.command(['change-list', 'audio-files', 'append', audio.uri.toString()]);
+    if (audio != null)
+      await native.command([
+        'change-list',
+        'audio-files',
+        'append',
+        audio.uri.toString(),
+      ]);
   }
 
   @override
-  Future<void> setRate(double rate) => player.setRate(rate.clamp(0.25, 4).toDouble());
+  Future<void> setRate(double rate) =>
+      player.setRate(rate.clamp(0.25, 4).toDouble());
 
   @override
-  Future<void> setAudioOnly({required bool enabled}) => _applyAudioOnly(enabled: enabled);
+  Future<void> setAudioOnly({required bool enabled}) =>
+      _applyAudioOnly(enabled: enabled);
 
   Future<void> _applyAudioOnly({required bool enabled}) async {
     if (enabled) {
-      if (_android) {
-        await controller.setVideoOutputEnabled(false);
-      } else {
-        await player.setVideoTrack(VideoTrack.no());
-      }
+      await player.setVideoTrack(VideoTrack.no());
       _audioOnly = true;
       return;
     }
@@ -370,16 +406,16 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
     // a black texture.
     final picture = Completer<void>();
     final subscription = player.stream.videoParams.listen((params) {
-      if (displaySizeOf(params) != null && !picture.isCompleted) picture.complete();
+      if (displaySizeOf(params) != null && !picture.isCompleted)
+        picture.complete();
     });
     try {
-      if (_android) {
-        await controller.setVideoOutputEnabled(true);
-      } else {
-        await player.setVideoTrack(VideoTrack.auto());
-      }
+      await player.setVideoTrack(VideoTrack.auto());
       _audioOnly = false;
-      await picture.future.timeout(const Duration(milliseconds: 2800), onTimeout: () {});
+      await picture.future.timeout(
+        const Duration(milliseconds: 2800),
+        onTimeout: () {},
+      );
     } finally {
       unawaited(subscription.cancel());
     }
@@ -392,8 +428,6 @@ final class MpvEngine implements PlayerEngine, PlaybackRate, PlaybackStatsSource
     _opens++;
     _bufferingProbe.close();
     _gate.close();
-    final listener = _frameListener;
-    if (listener != null) controller.frameRevision.removeListener(listener);
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

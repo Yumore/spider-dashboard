@@ -190,24 +190,17 @@ class AccountController extends GetxController {
 
   Future<void> importDouyinCookieFromFile() async {
     try {
-      final picked = await FilePicker.platform.pickFiles(
-        allowMultiple: false,
+      final file = await FilePicker.pickFile(
         type: FileType.any,
-        withData: true,
       );
-      if (picked == null || picked.files.isEmpty) {
-        return;
-      }
-      final file = picked.files.single;
-      String content;
-      if (file.bytes != null) {
-        content = utf8.decode(file.bytes!, allowMalformed: true);
-      } else if (file.path != null && file.path!.isNotEmpty) {
-        content = await File(file.path!).readAsString();
-      } else {
+      if (file == null) return;
+      final filePath = file.path;
+      if (filePath == null || filePath.isEmpty) {
         SmartDialog.showToast("无法读取所选文件");
         return;
       }
+      final content =
+          utf8.decode(await file.readAsBytes(), allowMalformed: true);
       final input = content.trim();
       if (input.isEmpty) {
         SmartDialog.showToast("Cookie 文件内容为空");

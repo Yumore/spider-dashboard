@@ -4,7 +4,7 @@
 
 import 'dart:async';
 
-import 'package:hooks/hooks.dart';
+import 'package:quickjs_hooks/hooks.dart';
 
 import 'architecture.dart';
 import 'c_compiler_config.dart';

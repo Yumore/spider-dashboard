@@ -43,7 +43,7 @@ dependencies:
   #系统交互
   package_info_plus: ^10.0.0 #包信息
   url_launcher: ^6.3.2 #打开链接
-  network_info_plus: ^7.0.0
+  network_info_plus: ^8.2.2
   shelf: ^1.4.2
   shelf_router: ^1.1.4
   udp: ^5.0.3 #UDP

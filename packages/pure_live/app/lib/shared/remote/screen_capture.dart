@@ -13,7 +13,6 @@ abstract final class ScreenCapture {
   static int _generation = 0;
   static int? _active;
   static VoidCallback? _onStopped;
-  static StreamSubscription<String>? _projectionStops;
 
   /// Connects the locally visible notification's Stop button to all peers.
   static void onStopped(VoidCallback? callback) {
@@ -24,7 +23,9 @@ abstract final class ScreenCapture {
           ? null
           : (call) async {
               final data = call.arguments;
-              if (call.method == 'stopped' && data is Map && data['generation'] == _active) {
+              if (call.method == 'stopped' &&
+                  data is Map &&
+                  data['generation'] == _active) {
                 _active = null;
                 callback();
               }
@@ -40,25 +41,34 @@ abstract final class ScreenCapture {
       if (Platform.isMacOS && !await Helper.requestCapturePermission()) {
         throw StateError('screen capture permission denied');
       }
-      final sources = await desktopCapturer.getSources(types: [SourceType.Window, SourceType.Screen]);
+      final sources = await desktopCapturer.getSources(
+        types: [SourceType.Window, SourceType.Screen],
+      );
       final context = AppNavigator.navigatorContext;
-      if (context == null || !context.mounted || sources.isEmpty) throw StateError('screen source unavailable');
+      if (context == null || !context.mounted || sources.isEmpty)
+        throw StateError('screen source unavailable');
       final selected = await showAppOptionDialog<String>(
         context: context,
         title: i18n('screen_share_source'),
         message: i18n('screen_share_source_desc'),
         selected: '',
-        options: [for (final item in sources.take(64)) AppDialogOption(value: item.id, label: item.name)],
+        options: [
+          for (final item in sources.take(64))
+            AppDialogOption(value: item.id, label: item.name),
+        ],
       );
       source = sources.where((item) => item.id == selected).firstOrNull;
       if (source == null) throw StateError('screen source selection canceled');
     }
-    if (attempt != _generation) throw StateError('screen capture selection canceled');
+    if (attempt != _generation)
+      throw StateError('screen capture selection canceled');
     if (Platform.isAndroid) {
       // Consent first, foreground acknowledgement second, projection last.
       // A fresh token is mandatory for each session on Android14 and later.
-      if (!await Helper.requestCapturePermission()) throw StateError('screen capture permission denied');
-      if (attempt != _generation) throw StateError('screen capture permission canceled');
+      if (!await Helper.requestCapturePermission())
+        throw StateError('screen capture permission denied');
+      if (attempt != _generation)
+        throw StateError('screen capture permission canceled');
       _active = attempt;
       await _channel.invokeMethod<void>('start', {
         'generation': _active,
@@ -70,21 +80,6 @@ abstract final class ScreenCapture {
     }
     if (Platform.isIOS) _active = attempt;
     final captureGeneration = _active;
-    Set<String>? tracks;
-    final ended = <String>{};
-    if (Platform.isAndroid || Platform.isIOS) {
-      _projectionStops = ScreenCaptureEvents.stopped.listen((id) {
-        if (_active != captureGeneration) return;
-        final current = tracks;
-        if (current == null) {
-          // A user can revoke from the OS before getDisplayMedia returns.
-          if (ended.length < 64) ended.add(id);
-        } else if (current.contains(id)) {
-          _active = null;
-          _onStopped?.call();
-        }
-      });
-    }
     try {
       final stream = await navigator.mediaDevices.getDisplayMedia({
         'audio': false,
@@ -95,14 +90,22 @@ abstract final class ScreenCapture {
                 'mandatory': {'frameRate': 15.0},
               },
       });
-      tracks = stream.getVideoTracks().map((track) => track.id!).toSet();
+      final videoTracks = stream.getVideoTracks();
       if (attempt != _generation ||
-          ((Platform.isAndroid || Platform.isIOS) && (_active != captureGeneration || ended.any(tracks.contains)))) {
+          ((Platform.isAndroid || Platform.isIOS) &&
+              _active != captureGeneration)) {
         for (final track in stream.getTracks()) {
           await track.stop();
         }
         await stream.dispose();
         throw StateError('screen capture revoked before becoming ready');
+      }
+      for (final track in videoTracks) {
+        track.onEnded = () {
+          if (captureGeneration == null || _active != captureGeneration) return;
+          _active = null;
+          _onStopped?.call();
+        };
       }
       return stream;
     } on Object {
@@ -115,8 +118,6 @@ abstract final class ScreenCapture {
   static Future<void> stop() async {
     _generation++;
     _active = null;
-    await _projectionStops?.cancel();
-    _projectionStops = null;
     if (Platform.isAndroid) await _channel.invokeMethod<void>('stop');
   }
 }

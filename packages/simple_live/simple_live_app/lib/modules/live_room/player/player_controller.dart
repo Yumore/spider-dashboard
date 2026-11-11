@@ -809,19 +809,20 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         SmartDialog.showToast("已保存截图至相册");
       } else {
         //选择保存文件夹
-        var path = await FilePicker.platform.saveFile(
+        var path = await FilePicker.saveFile(
           allowedExtensions: ["jpg"],
           type: FileType.image,
           fileName: "${DateTime.now().millisecondsSinceEpoch}.jpg",
+          bytes: imageData,
         );
         if (path == null) {
           SmartDialog.showToast("取消保存");
           SmartDialog.dismiss(status: SmartStatus.loading);
           return;
         }
-        var file = File(path);
-        await file.writeAsBytes(imageData);
-        SmartDialog.showToast("已保存截图至${file.path}");
+        final savedPath =
+            path.scheme == 'file' ? path.toFilePath() : path.toString();
+        SmartDialog.showToast("已保存截图至$savedPath");
       }
     } catch (e) {
       Log.logPrint(e);

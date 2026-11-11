@@ -73,13 +73,12 @@ class _InfoActionsMenuState extends State<InfoActionsMenu> {
       if (!mounted) return;
 
       if (isDesktop()) {
-        final path = await FilePicker.platform.saveFile(
+        final path = await FilePicker.saveFile(
           dialogTitle: '保存封面',
           fileName: fileName,
           type: FileType.custom,
           allowedExtensions: const ['png'],
           bytes: bytes,
-          lockParentWindow: true,
         );
         if (path != null) _notify('封面已保存');
         return;
@@ -114,10 +113,7 @@ class _InfoActionsMenuState extends State<InfoActionsMenu> {
           onPressed: _title.trim().isEmpty ? null : _copyTitle,
           label: '复制标题',
         ),
-        KazumiMenuItem(
-          onPressed: _openExternally,
-          label: '外部打开',
-        ),
+        KazumiMenuItem(onPressed: _openExternally, label: '外部打开'),
       ],
       builder: (context, toggle) => IconButton(
         tooltip: '更多操作',

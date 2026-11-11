@@ -10,6 +10,21 @@ rootProject.layout.buildDirectory = file('../build')
 subprojects {
     project.layout.buildDirectory = rootProject.layout.buildDirectory.dir(project.name)
     project.evaluationDependsOn(':app')
+
+    if (project.name == 'flutter_js') {
+        project.plugins.withId('com.android.library') {
+            project.android.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+        }
+    }
+
+    if (project.name == 'flutter_displaymode') {
+        project.afterEvaluate {
+            project.android.compileSdkVersion = rootProject.project(':app').android.compileSdk
+        }
+    }
 }
 
 tasks.register('clean', Delete) {

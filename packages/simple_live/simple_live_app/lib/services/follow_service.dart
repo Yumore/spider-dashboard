@@ -362,7 +362,7 @@ class FollowService extends GetxService {
       if (Platform.isIOS) {
         dir = (await getApplicationDocumentsDirectory()).path;
       } else {
-        dir = await FilePicker.platform.getDirectoryPath() ?? "";
+        dir = await FilePicker.getDirectoryPath() ?? "";
       }
 
       if (dir.isEmpty) {
@@ -386,14 +386,19 @@ class FollowService extends GetxService {
         SmartDialog.showToast("无权限");
         return;
       }
-      var file = await FilePicker.platform.pickFiles(
+      var file = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
       if (file == null) {
         return;
       }
-      var jsonFile = File(file.files.single.path!);
+      final path = file.path;
+      if (path == null || path.isEmpty) {
+        SmartDialog.showToast("无法读取所选文件");
+        return;
+      }
+      var jsonFile = File(path);
       await inputJson(await jsonFile.readAsString());
       SmartDialog.showToast("导入成功");
     } catch (e) {

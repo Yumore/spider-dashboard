@@ -185,7 +185,8 @@ abstract class _PlayerPlaybackController with Store {
       }
       videoReady = true;
       KazumiLogger().i(
-          'PlayerController: first video frame ${width}x$height, releasing loading');
+        'PlayerController: first video frame ${width}x$height, releasing loading',
+      );
       _finishStartup(reason: 'first-frame');
     });
 
@@ -217,8 +218,9 @@ abstract class _PlayerPlaybackController with Store {
       }
       startupStalled = true;
       KazumiLogger().w(
-          'PlayerController: startup stalled ${_startupDeadline.inSeconds}s, '
-          'releasing loading overlay');
+        'PlayerController: startup stalled ${_startupDeadline.inSeconds}s, '
+        'releasing loading overlay',
+      );
       _setLoading(false);
     });
   }
@@ -238,8 +240,8 @@ abstract class _PlayerPlaybackController with Store {
     _positionSubscription = null;
   }
 
-  static bool _hasUsableVideoTrack(Tracks tracks) => tracks.video
-      .any((track) => track.id != 'auto' && track.id != 'no');
+  static bool _hasUsableVideoTrack(Tracks tracks) =>
+      tracks.video.any((track) => track.id != 'auto' && track.id != 'no');
 
   /// 起播信号到达：收起加载遮罩。
   void _finishStartup({required String reason}) {
@@ -300,14 +302,16 @@ abstract class _PlayerPlaybackController with Store {
       if (!hasVideo) {
         // 纯音频文件，或轨道列表压根没到（不是"画面没出来"），不打扰用户。
         KazumiLogger().i(
-            'PlayerController: no video track reported, skip frame watchdog');
+          'PlayerController: no video track reported, skip frame watchdog',
+        );
         return;
       }
       startupStalled = true;
       _setLoading(false);
       KazumiLogger().w(
-          'PlayerController: audio is playing but no video frame in '
-          '${_videoFrameDeadline.inSeconds}s');
+        'PlayerController: audio is playing but no video frame in '
+        '${_videoFrameDeadline.inSeconds}s',
+      );
       if (_softDecodeRetryTried || !hAenable) {
         // 已经试过软解（或本来就是软解）：只给可操作的提示。
         KazumiDialog.showToast(
@@ -333,7 +337,8 @@ abstract class _PlayerPlaybackController with Store {
     }
     _softDecodeRetryTried = true;
     KazumiLogger().w(
-        'PlayerController: retrying with hardware decoding disabled');
+      'PlayerController: retrying with hardware decoding disabled',
+    );
     KazumiDialog.showToast(
       message: '画面未就绪，已切换软解重试',
       duration: const Duration(seconds: 4),
@@ -360,7 +365,9 @@ abstract class _PlayerPlaybackController with Store {
       _armVideoWatchdog();
     } catch (error) {
       KazumiLogger().e(
-          'PlayerController: software decode retry failed', error: error);
+        'PlayerController: software decode retry failed',
+        error: error,
+      );
     }
   }
 
@@ -406,8 +413,10 @@ abstract class _PlayerPlaybackController with Store {
       await player.play();
       startOffset = 0;
     } catch (e) {
-      KazumiLogger()
-          .w('PlayerController: failed to restart from beginning', error: e);
+      KazumiLogger().w(
+        'PlayerController: failed to restart from beginning',
+        error: e,
+      );
     }
   }
 
@@ -513,8 +522,9 @@ abstract class _PlayerPlaybackController with Store {
       GStorage.getSetting(SettingsKeys.defaultSuperResolutionMode),
     );
     hAenable = GStorage.getSetting(SettingsKeys.hAenable);
-    androidEnableOpenSLES =
-        GStorage.getSetting(SettingsKeys.androidEnableOpenSLES);
+    androidEnableOpenSLES = GStorage.getSetting(
+      SettingsKeys.androidEnableOpenSLES,
+    );
     hardwareDecoder = GStorage.getSetting(SettingsKeys.hardwareDecoder);
     autoPlay = GStorage.getSetting(SettingsKeys.autoPlay);
     playerDebugMode = GStorage.getSetting(SettingsKeys.playerDebugMode);
@@ -531,12 +541,12 @@ abstract class _PlayerPlaybackController with Store {
           bufferSize: cachePolicy.bufferSize,
           osc: false,
           logLevel: MPVLogLevel.values[debug.playerLogLevel],
-          adBlocker: adBlockerEnabled,
           // 默认走 libass：保留 ASS 特效/字体，并能渲染 PGS 等图形字幕。
           // Android 上 libass 必须提供一个内置字体才能初始化 fontconfig。
           libass: useLibass,
-          libassAndroidFont:
-              useLibass ? 'assets/fonts/MiSans-Regular.ttf' : null,
+          libassAndroidFont: useLibass
+              ? 'assets/fonts/MiSans-Regular.ttf'
+              : null,
           libassAndroidFontName: useLibass ? 'MiSans' : null,
         ),
       ),
@@ -614,17 +624,16 @@ abstract class _PlayerPlaybackController with Store {
         }
       }
 
-      await player.setAudioTrack(
-        AudioTrack.auto(),
-      );
+      await player.setAudioTrack(AudioTrack.auto());
       if (!isCurrentPlayer(player)) {
         return await _discardIfNotCurrent(candidate);
       }
 
       String? videoRenderer;
       if (Platform.isAndroid) {
-        final String androidVideoRenderer =
-            GStorage.getSetting(SettingsKeys.androidVideoRenderer);
+        final String androidVideoRenderer = GStorage.getSetting(
+          SettingsKeys.androidVideoRenderer,
+        );
 
         if (androidVideoRenderer == 'auto') {
           // Android 14 及以上使用基于 Vulkan 的 MPV GPU-NEXT 视频输出，着色器性能更好
@@ -656,7 +665,6 @@ abstract class _PlayerPlaybackController with Store {
         configuration: VideoControllerConfiguration(
           vo: videoRenderer,
           enableHardwareAcceleration: hAenable,
-          enableAndroidSurfaceProducer: false,
           hwdec: hAenable ? hardwareDecoder : 'no',
           androidAttachSurfaceAfterVideoParameters: false,
         ),
@@ -675,16 +683,21 @@ abstract class _PlayerPlaybackController with Store {
           );
           if (actionableMessage != null) {
             KazumiDialog.showToast(
-                message: actionableMessage, showActionButton: true);
+              message: actionableMessage,
+              showActionButton: true,
+            );
           } else if (showPlayerError) {
             KazumiDialog.showToast(
-                message: '播放器内部错误 ${event.toString()} ${videoUrl()}',
-                duration: const Duration(seconds: 5),
-                showActionButton: true);
+              message: '播放器内部错误 ${event.toString()} ${videoUrl()}',
+              duration: const Duration(seconds: 5),
+              showActionButton: true,
+            );
           }
         }
-        KazumiLogger().e('PlayerController: Player intent error ${videoUrl()}',
-            error: event);
+        KazumiLogger().e(
+          'PlayerController: Player intent error ${videoUrl()}',
+          error: event,
+        );
       });
 
       if (superResolutionMode != SuperResolutionMode.off) {
@@ -701,8 +714,11 @@ abstract class _PlayerPlaybackController with Store {
         }
       }
 
-      final media = Media(videoUrl(),
-          start: Duration(seconds: offset), httpHeaders: httpHeaders);
+      final media = Media(
+        videoUrl(),
+        start: Duration(seconds: offset),
+        httpHeaders: httpHeaders,
+      );
       _currentMedia = media;
       await player.open(media, play: autoPlay);
       if (!isCurrentPlayer(player)) {
@@ -775,8 +791,10 @@ abstract class _PlayerPlaybackController with Store {
     try {
       mediaPlayer!.setRate(playerSpeed);
     } catch (e) {
-      KazumiLogger()
-          .e('PlayerController: failed to set playback speed', error: e);
+      KazumiLogger().e(
+        'PlayerController: failed to set playback speed',
+        error: e,
+      );
     }
   }
 
@@ -891,6 +909,6 @@ abstract class _PlayerPlaybackController with Store {
       return null;
     }
     // Encode the captured frame natively; PlayerState dimensions may be stale.
-    return player.safeScreenshot(format: 'image/png');
+    return player.screenshot(format: 'image/png');
   }
 }

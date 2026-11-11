@@ -12,7 +12,7 @@ import 'package:logger/logger.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:screen_retriever/screen_retriever.dart';
+import 'package:screen_retriever/legacy.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/desktop_startup_args.dart';
@@ -490,13 +490,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isDynamicColor = AppSettingsController.instance.isDynamic.value;
     Color styleColor = Color(AppSettingsController.instance.styleColor.value);
-    return DynamicColorBuilder(
-        builder: ((ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+    return DynamicColorBuilder(builder: ((lightDynamic, darkDynamic) {
       ColorScheme? lightColorScheme;
       ColorScheme? darkColorScheme;
       if (lightDynamic != null && darkDynamic != null && isDynamicColor) {
-        lightColorScheme = lightDynamic;
-        darkColorScheme = darkDynamic;
+        lightColorScheme = ColorScheme.fromSeed(
+          seedColor: lightDynamic.primary,
+          brightness: Brightness.light,
+        );
+        darkColorScheme = ColorScheme.fromSeed(
+          seedColor: darkDynamic.primary,
+          brightness: Brightness.dark,
+        );
       } else {
         lightColorScheme = ColorScheme.fromSeed(
           seedColor: styleColor,
@@ -507,10 +512,13 @@ class MyApp extends StatelessWidget {
       }
       return GetMaterialApp(
         title: "Simple Live",
-        theme: hostTheme ?? AppStyle.lightTheme.copyWith(colorScheme: lightColorScheme),
-        darkTheme: hostTheme ?? AppStyle.darkTheme.copyWith(colorScheme: darkColorScheme),
+        theme: hostTheme ??
+            AppStyle.lightTheme.copyWith(colorScheme: lightColorScheme),
+        darkTheme: hostTheme ??
+            AppStyle.darkTheme.copyWith(colorScheme: darkColorScheme),
         themeMode: hostTheme == null
-            ? ThemeMode.values[Get.find<AppSettingsController>().themeMode.value]
+            ? ThemeMode
+                .values[Get.find<AppSettingsController>().themeMode.value]
             : ThemeMode.system,
         initialRoute: RoutePath.kIndex,
         getPages: AppPages.routes,

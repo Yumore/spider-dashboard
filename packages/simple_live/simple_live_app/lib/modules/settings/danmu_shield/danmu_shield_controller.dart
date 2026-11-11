@@ -209,7 +209,7 @@ class DanmuShieldController extends BaseController {
       if (Platform.isIOS) {
         dir = (await getApplicationDocumentsDirectory()).path;
       } else {
-        dir = await FilePicker.platform.getDirectoryPath() ?? "";
+        dir = await FilePicker.getDirectoryPath() ?? "";
       }
       if (dir.isEmpty) {
         return;
@@ -262,14 +262,15 @@ class DanmuShieldController extends BaseController {
         SmartDialog.showToast("没有存储权限");
         return;
       }
-      final file = await FilePicker.platform.pickFiles(
+      final file = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
-      if (file == null || file.files.single.path == null) {
+      final filePath = file?.path;
+      if (filePath == null) {
         return;
       }
-      final content = await File(file.files.single.path!).readAsString();
+      final content = await File(filePath).readAsString();
       await settingsController.importShieldPresetJson(content);
       SmartDialog.showToast("导入成功，当前配置和预设已更新");
     } catch (e) {

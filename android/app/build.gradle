@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         applicationId 'com.yumore.spiderx.flutter'
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 26
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
@@ -61,6 +61,22 @@ android {
     }
 }
 
+afterEvaluate {
+    def configuredReleaseRules = android.getDefaultProguardFile('proguard-android-optimize.txt')
+    def releaseOptimizedRules = rootProject.layout.buildDirectory
+        .dir("${project.name}/intermediates/default_proguard_files/global/${configuredReleaseRules.name}")
+        .get()
+        .asFile
+    def releaseProguardFiles = android.buildTypes.getByName('release').proguardFiles
+    releaseProguardFiles.removeAll { configuredFile ->
+        configuredFile.name == releaseOptimizedRules.name &&
+            configuredFile.absolutePath != releaseOptimizedRules.absolutePath
+    }
+    if (!releaseProguardFiles.contains(releaseOptimizedRules)) {
+        releaseProguardFiles.add(releaseOptimizedRules)
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
@@ -72,9 +88,9 @@ flutter {
 }
 
 dependencies {
-    implementation('com.github.yangfeng1994:FFmpeg-Android:v2.0.1') {
-        exclude group: 'com.android.support'
-    }
+    // Expose the FFmpegKit API supplied at runtime by the Flutter plugin so
+    // the short-drama platform bridge can use the same native implementation.
+    compileOnly 'com.antonkarpenko:ffmpeg-kit-min-gpl:2.2.3'
 }
 
 def shortDramaBuildScript = rootProject.file('../tool/build_short_drama_native.py')

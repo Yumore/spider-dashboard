@@ -44,7 +44,7 @@ abstract class _PlayerDebugController with Store {
   StreamSubscription<Playlist>? playerPlaylistSubscription;
   StreamSubscription<Track>? playerTracksSubscription;
   StreamSubscription<double?>? playerAudioBitrateSubscription;
-  StreamSubscription<double?>? playerVideoBitrateSubscription;
+  StreamSubscription<Tracks>? playerVideoBitrateSubscription;
 
   Future<void> setup(
     Player player, {
@@ -97,8 +97,11 @@ abstract class _PlayerDebugController with Store {
     });
     await playerVideoBitrateSubscription?.cancel();
     if (!isCurrentPlayer(player)) return;
-    playerVideoBitrateSubscription = player.stream.videoBitrate.listen((event) {
-      playerVideoBitrate = event.toString();
+    playerVideoBitrateSubscription = player.stream.tracks.listen((tracks) {
+      final videoTrack = tracks.video
+          .where((track) => track.id != 'auto' && track.id != 'no')
+          .firstOrNull;
+      playerVideoBitrate = videoTrack?.bitrate?.toString() ?? 'null';
     });
   }
 

@@ -19,18 +19,14 @@ class ProfileBackupController extends BaseController {
       final content = ProfileBackupService.instance.exportProfileJson();
       final fileName =
           "SimpleLive_Profile_${DateTime.now().millisecondsSinceEpoch ~/ 1000}.json";
-      final inlineSave = Platform.isAndroid || Platform.isIOS || kIsWeb;
-      final path = await FilePicker.platform.saveFile(
+      final saved = await FilePicker.saveFile(
         allowedExtensions: ["json"],
         type: FileType.custom,
         fileName: fileName,
-        bytes: inlineSave ? utf8.encode(content) : null,
+        bytes: Uint8List.fromList(utf8.encode(content)),
       );
-      if (path == null && !kIsWeb) {
+      if (saved == null) {
         return;
-      }
-      if (!inlineSave && path != null) {
-        await File(path).writeAsString(content);
       }
       SmartDialog.showToast("已导出配置包");
     } catch (e) {
@@ -52,15 +48,16 @@ class ProfileBackupController extends BaseController {
         confirm: "覆盖",
         cancel: "不覆盖",
       );
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ["json"],
       );
-      if (picked == null || picked.files.single.path == null) {
+      final path = picked?.path;
+      if (path == null) {
         return;
       }
       SmartDialog.showLoading(msg: "正在导入配置包");
-      final content = await File(picked.files.single.path!).readAsString();
+      final content = await File(path).readAsString();
       final summary = await ProfileBackupService.instance.importProfileJson(
         content,
         overwrite: overwrite,

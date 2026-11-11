@@ -7,10 +7,8 @@ import 'package:path/path.dart' as path;
 class ScreenshotExportService {
   const ScreenshotExportService();
 
-  Future<String?> chooseDestination() => FilePicker.platform.getDirectoryPath(
-    dialogTitle: '选择截图保存文件夹',
-    lockParentWindow: true,
-  );
+  Future<String?> chooseDestination() =>
+      FilePicker.getDirectoryPath(dialogTitle: '选择截图保存文件夹');
 
   Future<void> write(ScreenshotCandidate item, String location) async {
     final name = _fileName(item);

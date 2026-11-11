@@ -39,7 +39,7 @@ class _SubtitlePickerSheetState extends State<_SubtitlePickerSheet> {
       GStorage.getSetting(SettingsKeys.subtitleRenderMode) != 'simple';
 
   Future<void> _pickExternalFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: const [
         'ass',
@@ -53,10 +53,8 @@ class _SubtitlePickerSheetState extends State<_SubtitlePickerSheet> {
         'ttml',
         'dfxp',
       ],
-      withData: false,
     );
-    final picked = result?.files;
-    final path = (picked == null || picked.isEmpty) ? null : picked.first.path;
+    final path = result?.path;
     if (path == null || path.isEmpty) {
       return;
     }
@@ -101,8 +99,9 @@ class _SubtitlePickerSheetState extends State<_SubtitlePickerSheet> {
                   Expanded(
                     child: Text(
                       '字幕',
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   if (controller.loading)
@@ -207,8 +206,9 @@ class _SubtitlePickerSheetState extends State<_SubtitlePickerSheet> {
             child: Text(
               '这个视频没有内封字幕，也没有在视频旁边/服务器上找到外挂字幕。\n'
               '可以用右边的「添加字幕文件」手动指定。',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: colors.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
           ),
       ],
@@ -257,19 +257,23 @@ class _SubtitlePickerSheetState extends State<_SubtitlePickerSheet> {
           ],
         ),
         TextButton(
-          onPressed: controller.delayMs == 0 ? null : () => controller.setDelay(0),
+          onPressed: controller.delayMs == 0
+              ? null
+              : () => controller.setDelay(0),
           child: const Text('重置延迟'),
         ),
         if (controller.hasRememberedSelection) ...[
           const Divider(height: 20),
           Row(
             children: [
-              Icon(Icons.bookmark_added_rounded,
-                  size: 16, color: colors.primary),
+              Icon(
+                Icons.bookmark_added_rounded,
+                size: 16,
+                color: colors.primary,
+              ),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('已记住本集字幕',
-                    style: theme.textTheme.labelMedium),
+                child: Text('已记住本集字幕', style: theme.textTheme.labelMedium),
               ),
               TextButton(
                 onPressed: controller.clearRememberedSelection,
@@ -293,8 +297,9 @@ class _SubtitlePickerSheetState extends State<_SubtitlePickerSheet> {
           const Divider(height: 20),
           Text(
             '图形字幕（PGS/VobSub）：由 libass 直接绘制，可以正常显示，但字体样式改不了。',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: colors.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
         ],
       ],
@@ -325,8 +330,9 @@ class _SectionHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$count',
-            style: theme.textTheme.labelMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -357,11 +363,7 @@ class _SubtitleTile extends StatelessWidget {
             : Icons.radio_button_unchecked_rounded,
         color: selected ? colors.primary : colors.onSurfaceVariant,
       ),
-      title: Text(
-        entry.title,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(entry.title, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: entry.image ? const Text('图形字幕') : null,
       onTap: onTap,
     );

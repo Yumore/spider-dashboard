@@ -1792,14 +1792,14 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     }
     String? selectedPath;
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFile(
         dialogTitle: "选择字幕模型关键 onnx 文件",
         type: FileType.custom,
         allowedExtensions: const ["onnx"],
       );
-      selectedPath = result?.files.single.path;
+      selectedPath = result?.path;
     } catch (_) {
-      selectedPath = await FilePicker.platform.getDirectoryPath(
+      selectedPath = await FilePicker.getDirectoryPath(
         dialogTitle: "选择字幕模型文件夹",
       );
     }
