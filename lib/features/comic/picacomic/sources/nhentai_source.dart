@@ -29,9 +29,8 @@ import 'package:dashboard/features/comic/picacomic/network/web_user_agent.dart';
 /// * the `推荐` category button and `onLogin` webview flow are not ported: the
 ///   host has no navigation hooks in the source layer and no login page in
 ///   this write scope (webview_flutter is available but out of scope);
-/// * the `appdata.settings[69]` language filter is not ported, so
-///   `categoryComicsData` always takes the plain
-///   `NhentaiNetwork.getCategoryComics` path (nhentai.dart:54-61);
+/// * the global `appdata.settings[69]` preference is not ported; the host
+///   exposes equivalent language choices directly in search and tag results;
 /// * `comicTileBuilderOverride` / `comicPageBuilder` are dropped, so
 ///   `enableTagsTranslation` travels on the model instead.
 final ComicSource nhentaiSource = ComicSource(
@@ -72,11 +71,12 @@ final ComicSource nhentaiSource = ComicSource(
       }
       final type = parts[1];
       final name = parts[2];
-      return _network().getCategoryComics(
-        '/$type/$name',
-        page,
-        NhentaiSort.fromValue(options.isEmpty ? '' : options[0]),
-      );
+      final sort = NhentaiSort.fromValue(options.isEmpty ? '' : options[0]);
+      final language = options.length > 1 ? options[1] : '';
+      if (language.isNotEmpty) {
+        return _network().search('$type:$name $language', page, sort);
+      }
+      return _network().getCategoryComics('/$type/$name', page, sort);
     },
     options: [
       CategoryComicsOptions(
@@ -88,6 +88,15 @@ final ComicSource nhentaiSource = ComicSource(
           '&sort=popular': '热门 | 所有时间',
         }),
         notShowWhen: const ['random', 'latest'],
+      ),
+      CategoryComicsOptions(
+        options: LinkedHashMap.of({
+          '': '语言：全部',
+          'language:chinese': '语言：中文',
+          'language:english': '语言：English',
+          'language:japanese': '语言：日本語',
+        }),
+        notShowWhen: const ['random', 'latest', '中文', '日本語', 'english'],
       ),
     ],
   ),
@@ -155,9 +164,11 @@ final ComicSource nhentaiSource = ComicSource(
           if (images.error) return Res.fromErrorRes(images);
           final start = (page - 1) * 20;
           final end = (start + 20).clamp(0, images.data.length);
-          return Res(start >= images.data.length
-              ? <String>[]
-              : images.data.sublist(start, end));
+          return Res(
+            start >= images.data.length
+                ? <String>[]
+                : images.data.sublist(start, end),
+          );
         },
         (comic.thumbnails.length / 20).ceil().clamp(1, 1000),
         comic.recommendations,

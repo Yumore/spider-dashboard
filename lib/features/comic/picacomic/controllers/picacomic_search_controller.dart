@@ -14,6 +14,13 @@ import 'package:flutter/foundation.dart';
 /// The first result page is also what feeds `appdata.searchHistory`, which the
 /// host does not persist (out of the ported scope).
 class PicacomicSearchController extends ChangeNotifier {
+  static const Map<String, String> languageFilters = {
+    '': '语言：全部',
+    'chinese': '语言：中文',
+    'english': '语言：English',
+    'japanese': '语言：日本語',
+  };
+
   PicacomicSearchController({List<ComicSource>? sources})
     : sources =
           sources ??
@@ -30,9 +37,11 @@ class PicacomicSearchController extends ChangeNotifier {
   bool _loading = false;
   bool _disposed = false;
   bool _searched = false;
+  String _languageFilter = '';
   String? _error;
   int _page = 1;
   int? _maxPage;
+  int _requestGeneration = 0;
 
   int get sourceIndex => _sourceIndex;
 
@@ -55,6 +64,8 @@ class PicacomicSearchController extends ChangeNotifier {
 
   bool get searched => _searched;
 
+  String get languageFilter => _languageFilter;
+
   String? get error => _error;
 
   int get page => _page;
@@ -64,21 +75,45 @@ class PicacomicSearchController extends ChangeNotifier {
   void selectSource(int index) {
     if (index < 0 || index >= sources.length || index == _sourceIndex) return;
     _sourceIndex = index;
+    _languageFilter = '';
+    _selectedOptions = [
+      for (final option in searchOptions) option.defaultValue,
+    ];
     _resetResults();
+    _searched = false;
     _notify();
   }
 
   /// Replaces one option group's selection (index aligned with
   /// [searchOptions]).
-  void selectOption(int group, String value) {
+  Future<void> selectOption(int group, String value) async {
     if (group < 0 || group >= searchOptions.length) return;
     final options = [..._selectedOptions];
     while (options.length <= group) {
       options.add(searchOptions[options.length].defaultValue);
     }
+    if (options[group] == value) return;
     options[group] = value;
     _selectedOptions = options;
-    _notify();
+    if (!_searched) {
+      _notify();
+      return;
+    }
+    _resetResults();
+    await _load(1, replace: true);
+  }
+
+  /// Applies the selected language to sources that advertise language search.
+  /// An explicit `language:` term in the query always takes precedence.
+  Future<void> selectLanguageFilter(String value) async {
+    if (!languageFilters.containsKey(value) || value == _languageFilter) return;
+    _languageFilter = value;
+    if (!_searched) {
+      _notify();
+      return;
+    }
+    _resetResults();
+    await _load(1, replace: true);
   }
 
   /// Runs a fresh search and resets paging.
@@ -91,7 +126,10 @@ class PicacomicSearchController extends ChangeNotifier {
     }
     _keyword = trimmed;
     _selectedOptions = [
-      for (final option in searchOptions) option.defaultValue,
+      for (var index = 0; index < searchOptions.length; index++)
+        index < _selectedOptions.length
+            ? _selectedOptions[index]
+            : searchOptions[index].defaultValue,
     ];
     _resetResults();
     _searched = true;
@@ -111,11 +149,17 @@ class PicacomicSearchController extends ChangeNotifier {
       _notify();
       return;
     }
+    final generation = ++_requestGeneration;
     _loading = true;
     _error = null;
     _notify();
     try {
-      final res = await loader(_keyword, page, _selectedOptions);
+      final res = await loader(
+        _queryWithLanguageFilter(),
+        page,
+        _selectedOptions,
+      );
+      if (generation != _requestGeneration) return;
       if (res.error) {
         _error = res.errorMessageWithoutNull;
       } else {
@@ -124,14 +168,28 @@ class PicacomicSearchController extends ChangeNotifier {
         _page = page;
       }
     } catch (e) {
+      if (generation != _requestGeneration) return;
       _error = '$e';
     }
+    if (generation != _requestGeneration) return;
     _loading = false;
     _notify();
   }
 
+  String _queryWithLanguageFilter() {
+    final data = searchPageData;
+    final filter = _languageFilter;
+    if (data?.enableLanguageFilter != true || filter.isEmpty) return _keyword;
+    if (RegExp(r'(?:^|\s)language:', caseSensitive: false).hasMatch(_keyword)) {
+      return _keyword;
+    }
+    return '$_keyword language:$filter';
+  }
+
   void _resetResults() {
+    _requestGeneration++;
     _results = const [];
+    _loading = false;
     _page = 1;
     _maxPage = null;
     _error = null;

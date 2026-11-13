@@ -44,7 +44,9 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_controller.source?.categoryData?.title ?? '分类')),
+      appBar: AppBar(
+        title: Text(_controller.source?.categoryData?.title ?? '分类'),
+      ),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
@@ -61,7 +63,9 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
                   padding: const EdgeInsets.all(8),
                   child: Text(
                     _controller.error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               Expanded(child: _results()),
@@ -117,7 +121,9 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
   }
 
   Widget _optionsBar() {
-    final options = _controller.applicableOptions;
+    final options = _controller.ranking
+        ? const <CategoryComicsOptions>[]
+        : _controller.applicableOptions;
     final ranking = _controller.rankingOptions;
     final enableRanking = _controller.categoryData?.enableRankingPage ?? false;
     if (options.isEmpty && !enableRanking) return const SizedBox.shrink();

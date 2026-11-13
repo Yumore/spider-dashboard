@@ -76,7 +76,9 @@ class PicacomicSearchPageState extends State<PicacomicSearchPage> {
                   padding: const EdgeInsets.all(8),
                   child: Text(
                     _controller.error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               Expanded(child: _results()),
@@ -91,7 +93,11 @@ class PicacomicSearchPageState extends State<PicacomicSearchPage> {
     final source = _controller.source;
     if (source == null) return const SizedBox.shrink();
     final groups = _controller.searchOptions;
-    if (groups.isEmpty) return const SizedBox.shrink();
+    final showLanguageFilter =
+        _controller.searchPageData?.enableLanguageFilter ?? false;
+    if (groups.isEmpty && !showLanguageFilter) {
+      return const SizedBox.shrink();
+    }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -116,6 +122,20 @@ class PicacomicSearchPageState extends State<PicacomicSearchPage> {
                   if (value != null) _controller.selectOption(group, value);
                 },
               ),
+            ),
+          if (showLanguageFilter)
+            DropdownButton<String>(
+              value: _controller.languageFilter,
+              items: [
+                for (final entry
+                    in PicacomicSearchController.languageFilters.entries)
+                  DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  _controller.selectLanguageFilter(value);
+                }
+              },
             ),
         ],
       ),

@@ -41,6 +41,7 @@ class PicacomicCategoryController extends ChangeNotifier {
   List<BaseComic> _results = const [];
   bool _loading = false;
   bool _disposed = false;
+  int _loadGeneration = 0;
   String? _error;
   int _page = 1;
   int? _maxPage;
@@ -69,8 +70,7 @@ class PicacomicCategoryController extends ChangeNotifier {
   String? get category =>
       _categories.isEmpty ? null : _categories[_categoryIndex];
 
-  String? get categoryParam =>
-      _params.isEmpty ? null : _params[_categoryIndex];
+  String? get categoryParam => _params.isEmpty ? null : _params[_categoryIndex];
 
   /// The option groups that apply to the selected category.
   List<CategoryComicsOptions> get applicableOptions {
@@ -121,6 +121,7 @@ class PicacomicCategoryController extends ChangeNotifier {
     ];
     _categoryIndex = 0;
     _ranking = false;
+    _resetSelectedOptions();
     await load();
   }
 
@@ -130,6 +131,7 @@ class PicacomicCategoryController extends ChangeNotifier {
     }
     _categoryIndex = index;
     _ranking = false;
+    _resetSelectedOptions();
     await load();
   }
 
@@ -140,17 +142,21 @@ class PicacomicCategoryController extends ChangeNotifier {
     _params = [param];
     _categoryIndex = 0;
     _ranking = false;
+    _resetSelectedOptions();
     await load();
   }
 
-  void selectOption(int group, String value) {
+  Future<void> selectOption(int group, String value) async {
+    final availableOptions = applicableOptions;
+    if (group < 0 || group >= availableOptions.length) return;
     final options = [..._selectedOptions];
     while (options.length <= group) {
-      options.add(applicableOptions[options.length].defaultValue);
+      options.add(availableOptions[options.length].defaultValue);
     }
+    if (options[group] == value) return;
     options[group] = value;
     _selectedOptions = options;
-    _notify();
+    await _load(1, replace: true);
   }
 
   Future<void> selectRankingOption(String option) async {
@@ -162,8 +168,14 @@ class PicacomicCategoryController extends ChangeNotifier {
   Future<void> load() => _load(1, replace: true);
 
   Future<void> loadMore() {
-    if (!hasMore) return Future.value();
+    if (!hasMore || _loading) return Future.value();
     return _load(_page + 1, replace: false);
+  }
+
+  void _resetSelectedOptions() {
+    _selectedOptions = [
+      for (final option in applicableOptions) option.defaultValue,
+    ];
   }
 
   Future<void> _load(int page, {required bool replace}) async {
@@ -173,10 +185,7 @@ class PicacomicCategoryController extends ChangeNotifier {
       _notify();
       return;
     }
-    _selectedOptions = [
-      for (final option in data.applicableOptions(category ?? ''))
-        option.defaultValue,
-    ];
+    final generation = ++_loadGeneration;
     _loading = true;
     _error = null;
     _notify();
@@ -187,7 +196,13 @@ class PicacomicCategoryController extends ChangeNotifier {
               _rankingOption ?? rankingData.options.keys.first,
               page,
             )
-          : await data.load(category ?? '', categoryParam, _selectedOptions, page);
+          : await data.load(
+              category ?? '',
+              categoryParam,
+              _selectedOptions,
+              page,
+            );
+      if (generation != _loadGeneration) return;
       if (res.error) {
         _error = res.errorMessageWithoutNull;
       } else {
@@ -196,8 +211,10 @@ class PicacomicCategoryController extends ChangeNotifier {
         _page = page;
       }
     } catch (e) {
+      if (generation != _loadGeneration) return;
       _error = '$e';
     }
+    if (generation != _loadGeneration) return;
     _loading = false;
     _notify();
   }
