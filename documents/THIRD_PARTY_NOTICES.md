@@ -1,6 +1,6 @@
 # 第三方源码与许可记录
 
-更新日期：2026-11-08
+更新日期：2026-11-14
 
 本工程根许可证为 GNU AGPL-3.0。表内提交号界定迁移的上游快照；仓库未提供项目级 LICENSE 的来源按用户明确确认的复用授权处理。上游许可证、版权声明和随源码提供的第三方许可证保留在对应目录。
 
@@ -10,6 +10,13 @@
 | [wzgrx/PureLive](https://github.com/wzgrx/PureLive) | `9bd38aaf10e5bd7c8db24c27af82f433507c1917` | AGPL-3.0，见 `packages/pure_live/LICENSE` | `packages/pure_live/`, `lib/features/live/pure_live/` | 多平台直播、IPTV、弹幕、录制、多画面、后台播放、WebDAV、DLNA 及播放回退；从直播目录启动 |
 | [xiaojiulala/dart_simple_live](https://github.com/xiaojiulala/dart_simple_live) | `da2a0fdc9d9ca376bd3365e80a4589699a7b93b4` | GPL-3.0，见 `packages/simple_live/LICENSE` 与 `packages/simple_live/simple_live_tv_app/LICENSE.upstream` | `packages/simple_live/`, `lib/features/live/simple_live_host_page.dart`, `lib/features/live/simple_live_host_page_state.dart` | 手机/桌面版与 Android TV 专版共存；Android 大屏按逻辑宽度选择 TV 页面；QuickJS 与弹幕 fork 各自保留许可证 |
 | [kelstna/Kazumi-WebDAV](https://github.com/kelstna/Kazumi-WebDAV) | `d4c4ac4c50b0aad3479d97e68a9c21dbc1670941` | GPL-3.0-only，见 `packages/kazumi_webdav/LICENSE.upstream` | `packages/kazumi_webdav/`, `lib/features/anime/kazumi_entry.dart` | XPath 动漫源规则、WebDAV 媒体、字幕/音轨、ASS 字体、播放历史和下载；独立存储目录并使用宿主主题 |
+| [ch6vip/novel-sound](https://github.com/ch6vip/novel-sound) | `c9ffddbbf3c976ccc5735fc7daaf4d6f4426efa8` | GPL-3.0，见 `packages/novel_sound/LICENSE` | `packages/novel_sound/`, `lib/features/novel_sound/novel_sound_entry_page.dart`, `assets/` | 迁入小说书城/阅读器、TXT/EPUB 导入、书架/备份/WebDAV、系统朗读/有声书、短剧/漫剧/漫画、离线缓存及其 Rust 核心和 Android 桥接；从“我的”打开独立子应用。官方上游支持 Android/Windows；未接入私有服务，用户配置的 WebDAV/AI 等服务仍需自备。 |
+| [mikufoxxx/Wenku8_Flutter](https://github.com/mikufoxxx/Wenku8_Flutter) | `ebcd7f1891b54a92fc045c372974d70ec829f10a` | 上游随附 GPL-2.0 `LICENSE` 与 GPL-3.0 文本；本地 `PORTING.md` 保留原项目对两份文本适用范围未作判定的说明 | `packages/novel_sound/lib/widgets/wenku/`, `assets/licenses/wenku8/` | Novel Sound 内置 UI/阅读展示移植；保留上游 `NOTICE`、两份许可证和移植记录，不重新指定其许可。 |
+| [AhmeedGamil/liquid_glass_easy](https://github.com/AhmeedGamil/liquid_glass_easy) | `5.0.0` | MIT，见 `packages/novel_sound/third_party/liquid_glass_easy/LICENSE` | `packages/novel_sound/third_party/liquid_glass_easy/` | Novel Sound 的玻璃效果 UI；保留上游源文件、补丁记录和版权。 |
+| [FFmpeg `af_atempo`](https://github.com/FFmpeg/FFmpeg/tree/n7.1/libavfilter) | `n7.1` | LGPL-2.1-or-later，见 `native/audio_tempo/COPYING.LGPL-2.1` | `packages/novel_sound/native/audio_tempo/` | 听书变速算法移植；保留完整本地衍生源码和 LGPL 文本。 |
+| [mborgerding/kissfft](https://github.com/mborgerding/kissfft) | `e5dc279d` | BSD-3-Clause，见 `native/third_party/kissfft/COPYING` | `packages/novel_sound/native/third_party/kissfft/` | FFT 源文件按上游原样 vendored，版本与用途见同目录 README。 |
+| [kokke/tiny-AES-c](https://github.com/kokke/tiny-AES-c) | `23856752fbd139da0b8ca6e471a13d5bcc99a08d` | Unlicense，见 `native/third_party/tiny_aes/unlicense.txt` | `packages/novel_sound/native/third_party/tiny_aes/` | AES-128 ECB 源码按上游原样 vendored；文件哈希与封装用途见同目录 README。 |
+| [Predidit/flutter-webview-windows](https://github.com/Predidit/flutter-webview-windows) | `2b3306d2bfb9f22cbb328743b60e547cf50f0c3c` | BSD-3-Clause，见 `packages/webview_windows/LICENSE` | `packages/webview_windows/` | 统一 Kazumi 与 Novel Sound 的 Windows WebView 依赖；保留无界面 WebView 与下载响应处理，并合入 Novel Sound 固定番茄官方站点的 HttpOnly cookie 读取通道。修改记录见 `packages/webview_windows/LOCAL_CHANGES.md`。 |
 | [youniube/zhenguo-app](https://github.com/youniube/zhenguo-app) | `2cfc49345180325c180d7de03154e6874013cae1` | 仓库未提供项目级 LICENSE；用户确认有权复用 | `lib/features/short_drama/hongguo/`, `native/core/`, `native/ysp/` | 新版短剧搜索、诊断、片库交换、直播、媒体传输与 YSP 代码合入短剧模块；保留 #1 迁移的青空次元、鬼片、韩小圈站源 |
 | [superxyline/purelive](https://github.com/superxyline/purelive) | `49de6d04bb90d1df1b1015ac342c7104a768062f` | AGPL-3.0，见 `packages/purelive_nas/LICENSE.upstream` | `packages/purelive_nas/`, `lib/features/live/pure_live_nas/` | NAS Node 服务、Web 管理界面和部署文件；宿主允许设置用户自托管地址并检查 `/api/health`，不包含预置私有服务或访问令牌 |
 | [yanmo-null/ym_live_stream](https://github.com/yanmo-null/ym_live_stream) | `b901557bb60272309a434d9a49f05055c6243c73` | 仓库未提供项目级 LICENSE；用户确认有权复用 | 未重复导入；直播适配能力由 `packages/pure_live/` 与 `packages/simple_live/` 承接 | 审查到的上游房间控制器在未注册站源时回退到 MockLiveSource；没有新增可用平台适配器，避免将模拟数据当成真实直播能力 |
@@ -24,7 +31,7 @@
 | [TypeDreamMoon/DreamMangaReader](https://github.com/TypeDreamMoon/DreamMangaReader) | `a162c2c7634957be67beb64d8040e03e7cfba44b`（main，检索参考） | MIT，仓库 `LICENSE` | `lib/features/reading/local_library/local_text_*` | 未复制其应用或脚本源引擎；按其本地小说支持场景，在现有本地书架加入 TXT 导入、UTF-8/UTF-16/GBK 解码及阅读位置保存。解码使用宿主已有 `enough_convert`。 |
 | [ben-milanko/dart-pdf](https://github.com/ben-milanko/dart-pdf) / [pdf_document](https://pub.dev/packages/pdf_document/versions/15.0.0) / [pdf_graphics](https://pub.dev/packages/pdf_graphics/versions/15.0.0) | `pdf_document 15.0.0`、`pdf_graphics 15.0.0`、传递依赖 `pdf_cos 15.0.0`（`pubspec.lock`） | Apache-2.0（三个包；许可文本 `documents/third_party/DartPDF-Apache-2.0.txt`） | `lib/features/reading/pdf_tools/`、`pubspec.yaml` | 纯 Dart 接入本机 PDF 页数/元数据/文本层检查与按序合并；限制输入大小、页数和预览字符，不含 OCR。未迁入上游完整 viewer/editor 应用；Web 线程行为与真实 PDF 样本仍待运行验收。 |
 
-纯 Flutter 依赖 `ffmpeg_kit_flutter_new_min_gpl` 由 `pubspec.lock` 锁定；其 GPL 许可随 Pub 包发布。WebDAV、直播账号、站源服务和 NAS 地址均由用户提供。项目未迁入任何源仓库中的签名密钥或服务端凭据。
+Novel Sound 随附的 Noto Serif CJK 与 Roboto Mono 字体保留各自的 OFL 声明，见 `assets/fonts/*-OFL.txt`。纯 Flutter 依赖 `ffmpeg_kit_flutter_new_min_gpl` 由 `pubspec.lock` 锁定；其 GPL 许可随 Pub 包发布。WebDAV、直播账号、站源服务和 NAS 地址均由用户提供。项目未迁入任何源仓库中的签名密钥或服务端凭据。
 
 对本表中标记“未重复复制代码”的仓库，仅记录版本、许可和能力重叠，不表示其每项独有上游行为均已逐项实现或验收。用户授权的未声明许可来源限于本表注明的两个仓库。
 

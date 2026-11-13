@@ -10,6 +10,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_linux
   flutter_inappwebview_linux
   flutter_js
+  flutter_secure_storage_linux
   flutter_volume_controller
   flutter_webrtc
   media_kit_libs_linux

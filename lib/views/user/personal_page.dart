@@ -2,6 +2,7 @@ import 'package:dashboard/app/app_theme.dart';
 import 'package:dashboard/app/user_info.dart';
 import 'package:dashboard/app/utils.dart';
 import 'package:dashboard/features/content_hub/content_hub_page.dart';
+import 'package:dashboard/features/novel_sound/novel_sound_entry_page.dart';
 import 'package:dashboard/views/news/news_home.dart';
 import 'package:dashboard/views/novel/novel_home.dart';
 import 'package:flutter/material.dart';
@@ -91,6 +92,12 @@ class PersonalPage extends StatelessWidget {
                 icon: Icons.auto_stories_outlined,
                 title: '小说频道',
                 onTap: () => _openPage(context, const NovelHomePage()),
+              ),
+              _buildMenuTile(
+                context,
+                icon: Icons.headphones_outlined,
+                title: '什锦铺 · 小说与听书',
+                onTap: () => _openPage(context, const NovelSoundEntryPage()),
               ),
               _buildMenuTile(
                 context,

@@ -11,11 +11,24 @@ if (signingPropertiesFile.exists()) {
 }
 def hasReleaseSigning = ['keyAlias', 'keyPassword', 'storeFile', 'storePassword']
     .every { signingProperties.getProperty("config.$it") }
+def novelSoundPinnedNdkVersion = '28.2.13676358'
+def configuredNdkVersion = providers.gradleProperty('dashboardNdkVersion')
+    .getOrElse(novelSoundPinnedNdkVersion)
+if (configuredNdkVersion != novelSoundPinnedNdkVersion) {
+    throw new GradleException("Novel Sound Rust builds require Android NDK ${novelSoundPinnedNdkVersion}; dashboardNdkVersion is ${configuredNdkVersion}.")
+}
 
 android {
     namespace 'com.yumore.spiderx.flutter'
     compileSdk flutter.compileSdkVersion
-    ndkVersion providers.gradleProperty('dashboardNdkVersion').getOrElse(flutter.ndkVersion)
+    ndkVersion novelSoundPinnedNdkVersion
+
+    externalNativeBuild {
+        cmake {
+            path file('../../packages/novel_sound/native/CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -28,6 +41,12 @@ android {
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
+
+        externalNativeBuild {
+            cmake {
+                targets 'shortplay_crypto', 'shortplay_tempo'
+            }
+        }
     }
 
     signingConfigs {
@@ -91,6 +110,10 @@ dependencies {
     // Expose the FFmpegKit API supplied at runtime by the Flutter plugin so
     // the short-drama platform bridge can use the same native implementation.
     compileOnly 'com.antonkarpenko:ffmpeg-kit-min-gpl:2.2.3'
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-common:1.4.1'
+    implementation 'androidx.media3:media3-datasource:1.4.1'
+    implementation 'androidx.media:media:1.7.0'
 }
 
 def shortDramaBuildScript = rootProject.file('../tool/build_short_drama_native.py')
@@ -122,8 +145,30 @@ def buildShortDramaNative = tasks.register('buildShortDramaNative', Exec) {
     environment 'SHORT_DRAMA_ALL_SOURCES', shortDramaAllSources.toString()
 }
 
+def novelSoundRustBuildScript = rootProject.file('../packages/novel_sound/scripts/build_rust_backend.sh')
+def novelSoundRustBuildScriptPs1 = rootProject.file('../packages/novel_sound/scripts/build_rust_backend.ps1')
+def windowsHost = System.getProperty('os.name').toLowerCase().contains('windows')
+def buildNovelSoundRust = tasks.register('buildNovelSoundRust', Exec) {
+    inputs.files(fileTree(rootProject.file('../packages/novel_sound/rust')) {
+        include 'src/**', 'Cargo.toml', 'Cargo.lock', 'build.rs'
+    })
+    inputs.file(novelSoundRustBuildScript)
+    outputs.files(
+        file('src/main/jniLibs/arm64-v8a/libfqapi_core.so'),
+        file('src/main/jniLibs/armeabi-v7a/libfqapi_core.so'),
+    )
+    workingDir rootProject.projectDir.parentFile
+    environment 'NOVEL_SOUND_FLUTTER_ROOT', rootProject.projectDir.parentFile.absolutePath
+    if (windowsHost) {
+        inputs.file(novelSoundRustBuildScriptPs1)
+        commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File', novelSoundRustBuildScriptPs1.absolutePath, '-SkipCodegen'
+    } else {
+        commandLine 'bash', novelSoundRustBuildScript.absolutePath, '--skip-codegen'
+    }
+}
+
 tasks.named('preBuild').configure {
-    dependsOn(buildShortDramaNative)
+    dependsOn(buildShortDramaNative, buildNovelSoundRust)
 }
 
 tasks.configureEach { task ->

@@ -32,6 +32,7 @@ dependencies:
   window_manager: ^0.5.1
   cupertino_icons: ^1.0.8
   http: ^1.6.0
+  flutter_riverpod: ^3.4.3
   flutter_js: ^0.8.7
   pdf_document: 15.0.0
   pdf_graphics: 15.0.0
@@ -86,6 +87,8 @@ dependencies:
     path: packages/simple_live/simple_live_app
   simple_live_tv_app:
     path: packages/simple_live/simple_live_tv_app
+  fqapp:
+    path: packages/novel_sound
 
 dev_dependencies:
   flutter_test:
@@ -113,6 +116,23 @@ flutter:
     # To add assets to your application, add an assets section, like this:
     assets:
         - assets/
+        - assets/config/config.json
+        - assets/config/filter.json
+        - assets/config/device_pool.example.json
+        - assets/filters/
+        - assets/images/app_logo.webp
+        - assets/images/wechat_reward.png
+        - assets/images/bubble/
+        - assets/images/emoji/
+        - assets/images/drama/
+        - assets/images/reader/
+        - assets/lottie/
+        - assets/fonts/NotoSerifCJK-OFL.txt
+        - assets/fonts/RobotoMono-OFL.txt
+        - assets/licenses/wenku8/NOTICE
+        - assets/licenses/wenku8/LICENSE
+        - assets/licenses/wenku8/GPL-3.0.txt
+        - assets/licenses/wenku8/PORTING.md
         - assets/video_enhancement/
         - assets/billd_live/tabbar/
         - assets/dodu/
@@ -123,6 +143,17 @@ flutter:
         - assets/short_video/images/
         - assets/short_video/videos/
         - lib/features/movie/flutterdouban/mock/
+
+    fonts:
+        - family: Home Serif
+          fonts:
+            - asset: assets/fonts/NotoSerifSC-Regular.otf
+            - asset: assets/fonts/NotoSerifSC-Bold.otf
+              weight: 700
+        - family: Home Mono
+          fonts:
+            - asset: assets/fonts/RobotoMono-Medium.ttf
+              weight: 500
 
     # An image asset can refer to one or more resolution-specific "variants", see
     # https://flutter.dev/assets-and-images/#resolution-aware.
@@ -153,5 +184,9 @@ flutter:
 dependency_overrides:
   window_manager:
     path: packages/pure_live/third_party/window_manager
+  webview_windows:
+    path: packages/webview_windows
+  # Keep the legacy Novel Sound key importer on the win32 6-compatible plugin.
+  flutter_secure_storage_windows: ^4.2.2
   dbus: 0.8.0
   win32: ^6.0.0

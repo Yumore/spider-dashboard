@@ -4,6 +4,21 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.content.pm.ActivityInfo
+import android.view.KeyEvent
+import com.yumore.dashboard.novelsound.platform.AiRequestPlugin
+import com.yumore.dashboard.novelsound.platform.DownloadsPlugin
+import com.yumore.dashboard.novelsound.platform.EinkRefreshPlugin
+import com.yumore.dashboard.novelsound.platform.FairMemoryPlugin
+import com.yumore.dashboard.novelsound.platform.FanqieAccountPlugin
+import com.yumore.dashboard.novelsound.platform.LibraryBackupPlugin
+import com.yumore.dashboard.novelsound.platform.LocalBookPickerPlugin
+import com.yumore.dashboard.novelsound.platform.NativePlayerPlugin
+import com.yumore.dashboard.novelsound.platform.PlayerSystemUiPlugin
+import com.yumore.dashboard.novelsound.platform.ReaderDevicePlugin
+import com.yumore.dashboard.novelsound.platform.RendererCompatibility
+import com.yumore.dashboard.novelsound.platform.SecureKeyPlugin
+import com.yumore.dashboard.novelsound.platform.SharePlugin
+import com.yumore.dashboard.novelsound.platform.SystemTtsPlugin
 import com.yumore.dashboard.shortdrama.platform.bridge.ShortDramaPlatformChannelRouter
 import com.yumore.dashboard.shortdrama.platform.device.ShortDramaDisplayController
 import com.yumore.dashboard.shortdrama.platform.device.ShortDramaPictureInPictureController
@@ -11,6 +26,8 @@ import com.yumore.dashboard.shortdrama.platform.device.ShortDramaPlaybackEnviron
 import com.yumore.dashboard.shortdrama.platform.media.ShortDramaFfmpegRunner
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterShellArgs
+import io.flutter.plugin.common.MethodChannel
 
 class DashboardActivity : FlutterActivity() {
     private lateinit var displayController: ShortDramaDisplayController
@@ -18,6 +35,13 @@ class DashboardActivity : FlutterActivity() {
     private lateinit var playbackEnvironment: ShortDramaPlaybackEnvironment
     private lateinit var ffmpegRunner: ShortDramaFfmpegRunner
     private var channelRouter: ShortDramaPlatformChannelRouter? = null
+    private var volumeKeyEnabled = false
+    private var volumeChannel: MethodChannel? = null
+    private var hapticsChannel: MethodChannel? = null
+    internal var isResumed = false
+
+    override fun getFlutterShellArgs(): FlutterShellArgs =
+        super.getFlutterShellArgs().also(RendererCompatibility::configure)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         displayController = ShortDramaDisplayController(this)
@@ -42,7 +66,13 @@ class DashboardActivity : FlutterActivity() {
 
     override fun onResume() {
         super.onResume()
+        isResumed = true
         displayController.applyCurrentOrientation()
+    }
+
+    override fun onPause() {
+        isResumed = false
+        super.onPause()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -52,6 +82,48 @@ class DashboardActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        flutterEngine.plugins.add(NativePlayerPlugin())
+        flutterEngine.plugins.add(ReaderDevicePlugin())
+        flutterEngine.plugins.add(PlayerSystemUiPlugin())
+        flutterEngine.plugins.add(SystemTtsPlugin())
+        flutterEngine.plugins.add(SecureKeyPlugin())
+        flutterEngine.plugins.add(LocalBookPickerPlugin())
+        flutterEngine.plugins.add(LibraryBackupPlugin())
+        flutterEngine.plugins.add(FanqieAccountPlugin())
+        flutterEngine.plugins.add(SharePlugin())
+        flutterEngine.plugins.add(DownloadsPlugin())
+        flutterEngine.plugins.add(EinkRefreshPlugin())
+        flutterEngine.plugins.add(FairMemoryPlugin())
+        flutterEngine.plugins.add(AiRequestPlugin())
+
+        hapticsChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "fqapp/haptics",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                if (call.method != "setEnabled") {
+                    result.notImplemented()
+                } else if (call.arguments !is Boolean) {
+                    result.error("BAD_ARGUMENT", "Expected a boolean", null)
+                } else {
+                    window.decorView.isHapticFeedbackEnabled = call.arguments as Boolean
+                    result.success(true)
+                }
+            }
+        }
+        volumeChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "fqapp/volume-key",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                if (call.method == "setEnabled") {
+                    volumeKeyEnabled = call.arguments as? Boolean ?: false
+                    result.success(null)
+                } else {
+                    result.notImplemented()
+                }
+            }
+        }
         channelRouter = ShortDramaPlatformChannelRouter(
             activity = this,
             displayController = displayController,
@@ -70,8 +142,26 @@ class DashboardActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        hapticsChannel?.setMethodCallHandler(null)
+        hapticsChannel = null
+        volumeChannel?.setMethodCallHandler(null)
+        volumeChannel = null
         channelRouter?.detach()
         channelRouter = null
         super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
+        if (volumeKeyEnabled && event != null) {
+            val key = event.keyCode
+            if (key == KeyEvent.KEYCODE_VOLUME_DOWN || key == KeyEvent.KEYCODE_VOLUME_UP) {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    val direction = if (key == KeyEvent.KEYCODE_VOLUME_DOWN) 1 else -1
+                    volumeChannel?.invokeMethod("volumeKey", direction)
+                }
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 }

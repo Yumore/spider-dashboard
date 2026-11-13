@@ -13,6 +13,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
   flutter_inappwebview_windows
   flutter_js
+  flutter_secure_storage_windows
+  flutter_tts
   flutter_volume_controller
   flutter_webrtc
   media_kit_libs_windows_video
@@ -30,6 +32,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   jni
   sherpa_onnx_windows
+  smtc_windows
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

@@ -52,6 +52,32 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+# Novel Sound's desktop media adapter loads this library beside the Flutter
+# executable. Build it as part of the app target so `flutter run` and bundled
+# builds both get the same in-process Rust backend.
+find_program(CARGO_EXECUTABLE cargo)
+if(NOT CARGO_EXECUTABLE)
+  message(FATAL_ERROR "Novel Sound's Windows backend requires Cargo on PATH.")
+endif()
+set(NOVEL_SOUND_RUST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../packages/novel_sound/rust")
+set(NOVEL_SOUND_RUST_MANIFEST "${NOVEL_SOUND_RUST_DIR}/Cargo.toml")
+set(NOVEL_SOUND_RUST_DLL "${NOVEL_SOUND_RUST_DIR}/target/release/fqapi_core.dll")
+add_custom_target(novel_sound_rust
+  COMMAND "${CARGO_EXECUTABLE}" build --locked --release --manifest-path "${NOVEL_SOUND_RUST_MANIFEST}"
+  WORKING_DIRECTORY "${NOVEL_SOUND_RUST_DIR}"
+  BYPRODUCTS "${NOVEL_SOUND_RUST_DLL}"
+  COMMENT "Building Novel Sound Rust core"
+  VERBATIM
+)
+add_dependencies(${BINARY_NAME} novel_sound_rust)
+add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${NOVEL_SOUND_RUST_DLL}"
+    "$<TARGET_FILE_DIR:${BINARY_NAME}>/fqapi_core.dll"
+  COMMENT "Bundling Novel Sound Rust core"
+  VERBATIM
+)
+
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
@@ -78,6 +104,9 @@ install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
+install(FILES "${NOVEL_SOUND_RUST_DLL}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
 if(PLUGIN_BUNDLED_LIBRARIES)
