@@ -1,5 +1,6 @@
 import 'package:dashboard/app/config_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme with ChangeNotifier {
   AppTheme() {
@@ -20,15 +21,15 @@ class AppTheme with ChangeNotifier {
     "早苗绿": Colors.green,
     "少女粉": Colors.pink,
     "基佬紫": Colors.purple,
-    "朴素灰": Colors.blueGrey
+    "朴素灰": Colors.blueGrey,
   };
 
   ThemeMode? _themeMode;
   String? _themeModeName;
 
-  get themeMode => _themeMode;
+  ThemeMode get themeMode => _themeMode ?? ThemeMode.system;
 
-  get themeModeName => _themeModeName;
+  String get themeModeName => _themeModeName ?? '跟随系统';
 
   void changeThemeMode(int index) {
     _themeMode = AppTheme.themeModes.values.toList()[index];
@@ -50,29 +51,90 @@ class AppTheme with ChangeNotifier {
   }
 
   List<Widget> _createThemeModeWidget(BuildContext context) {
-    List<Widget> widgets = <Widget>[];
-    for (var item in AppTheme.themeModes.keys) {
-      widgets.add(RadioListTile<String>(
-        groupValue: item,
-        value: _themeModeName!,
-        title: Text(
-          item,
-        ),
+    return [
+      RadioGroup<String>(
+        groupValue: _themeModeName,
         onChanged: (value) {
-          changeThemeMode(AppTheme.themeModes.keys.toList().indexOf(item));
+          if (value == null) return;
+          changeThemeMode(AppTheme.themeModes.keys.toList().indexOf(value));
           Navigator.of(context).pop();
         },
-      ));
-    }
-    return widgets;
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final item in AppTheme.themeModes.keys)
+              RadioListTile<String>(value: item, title: Text(item)),
+          ],
+        ),
+      ),
+    ];
   }
 
   Color? _themeColor;
   String? _themeColorName;
 
-  get themeColor => _themeColor;
+  Color get themeColor => _themeColor ?? Colors.blue;
 
-  get themeColorName => _themeColorName;
+  String get themeColorName => _themeColorName ?? '胖次蓝';
+
+  ThemeData themeFor(Brightness brightness) {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: themeColor,
+      brightness: brightness,
+    );
+    final isLight = brightness == Brightness.light;
+    final surface = isLight ? const Color(0xFFFFFFFF) : const Color(0xFF1A1D23);
+    final scaffold = isLight
+        ? const Color(0xFFF7F8FA)
+        : const Color(0xFF111318);
+    final divider = scheme.outlineVariant;
+    final statusBarIcons = scheme.onPrimary.computeLuminance() > 0.5
+        ? Brightness.light
+        : Brightness.dark;
+    final statusBarBackground = scheme.primary.computeLuminance() > 0.5
+        ? Brightness.light
+        : Brightness.dark;
+    final navigationBarIcons = surface.computeLuminance() > 0.5
+        ? Brightness.dark
+        : Brightness.light;
+
+    return ThemeData(
+      useMaterial3: false,
+      brightness: brightness,
+      colorScheme: scheme,
+      primaryColor: scheme.primary,
+      scaffoldBackgroundColor: scaffold,
+      cardColor: surface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: scheme.primary,
+          statusBarIconBrightness: statusBarIcons,
+          statusBarBrightness: statusBarBackground,
+          systemNavigationBarColor: surface,
+          systemNavigationBarIconBrightness: navigationBarIcons,
+          systemNavigationBarDividerColor: divider,
+        ),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: surface,
+        selectedItemColor: scheme.primary,
+        unselectedItemColor: scheme.onSurfaceVariant,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        selectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
+      ),
+      dividerTheme: DividerThemeData(color: divider, thickness: 1, space: 1),
+    );
+  }
 
   void changeThemeColor(int index) {
     _themeColor = AppTheme.themeColors.values.toList()[index];
@@ -94,21 +156,28 @@ class AppTheme with ChangeNotifier {
   }
 
   List<Widget> _createThemeWidget(BuildContext context) {
-    List<Widget> widgets = <Widget>[];
-    for (var item in AppTheme.themeColors.keys) {
-      widgets.add(RadioListTile<String>(
-        groupValue: item,
-        value: _themeColorName!,
-        title: Text(
-          item,
-          style: TextStyle(color: AppTheme.themeColors[item]),
-        ),
+    return [
+      RadioGroup<String>(
+        groupValue: _themeColorName,
         onChanged: (value) {
-          changeThemeColor(AppTheme.themeColors.keys.toList().indexOf(item));
+          if (value == null) return;
+          changeThemeColor(AppTheme.themeColors.keys.toList().indexOf(value));
           Navigator.of(context).pop();
         },
-      ));
-    }
-    return widgets;
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final item in AppTheme.themeColors.keys)
+              RadioListTile<String>(
+                value: item,
+                title: Text(
+                  item,
+                  style: TextStyle(color: AppTheme.themeColors[item]),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
   }
 }
