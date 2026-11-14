@@ -1,6 +1,6 @@
 # 第三方源码与许可记录
 
-更新日期：2026-11-14
+更新日期：2026-11-15
 
 本工程根许可证为 GNU AGPL-3.0。表内提交号界定迁移的上游快照；仓库未提供项目级 LICENSE 的来源按用户明确确认的复用授权处理。上游许可证、版权声明和随源码提供的第三方许可证保留在对应目录。
 
@@ -9,6 +9,7 @@
 | [czgyz/hongguo](https://github.com/czgyz/hongguo) | `b0b56ce18f2d66cdde715439eeaea7472d461301` | 仓库未提供项目级 LICENSE；用户确认有权复用 | `lib/features/short_drama/hongguo/`, `native/`, `android/app/src/main/kotlin/com/yumore/dashboard/shortdrama/` | 短剧目录、详情、播放、下载、本地库、设备互联、视频增强、Android 桥接和红果原生弹幕；与郑果播放会话及弹幕叠层联动 |
 | [wzgrx/PureLive](https://github.com/wzgrx/PureLive) | `9bd38aaf10e5bd7c8db24c27af82f433507c1917` | AGPL-3.0，见 `packages/pure_live/LICENSE` | `packages/pure_live/`, `lib/features/live/pure_live/` | 多平台直播、IPTV、弹幕、录制、多画面、后台播放、WebDAV、DLNA 及播放回退；从直播目录启动 |
 | [xiaojiulala/dart_simple_live](https://github.com/xiaojiulala/dart_simple_live) | `da2a0fdc9d9ca376bd3365e80a4589699a7b93b4` | GPL-3.0，见 `packages/simple_live/LICENSE` 与 `packages/simple_live/simple_live_tv_app/LICENSE.upstream` | `packages/simple_live/`, `lib/features/live/simple_live_host_page.dart`, `lib/features/live/simple_live_host_page_state.dart` | 手机/桌面版与 Android TV 专版共存；Android 大屏按逻辑宽度选择 TV 页面；QuickJS 与弹幕 fork 各自保留许可证 |
+| [xiaoyaocz/dart_simple_live](https://github.com/xiaoyaocz/dart_simple_live) | `ba828e6783b176ea5709fcd09f0eb01dfaceeb51` (`master`, 2026-01-23) | GPL-3.0，见 `packages/simple_live/upstream/LICENSE` | `packages/simple_live/upstream/` | 完整迁入上游工作树（移动版、TV 版、核心、控制台、资产、测试与项目配置）；Dashboard 继续使用已适配的宿主运行代码；完整 Git 历史见 `documents/migration_backups/dart_simple_live-ba828e6783b1.bundle` |
 | [kelstna/Kazumi-WebDAV](https://github.com/kelstna/Kazumi-WebDAV) | `d4c4ac4c50b0aad3479d97e68a9c21dbc1670941` | GPL-3.0-only，见 `packages/kazumi_webdav/LICENSE.upstream` | `packages/kazumi_webdav/`, `lib/features/anime/kazumi_entry.dart` | XPath 动漫源规则、WebDAV 媒体、字幕/音轨、ASS 字体、播放历史和下载；独立存储目录并使用宿主主题 |
 | [ch6vip/novel-sound](https://github.com/ch6vip/novel-sound) | `c9ffddbbf3c976ccc5735fc7daaf4d6f4426efa8` | GPL-3.0，见 `packages/novel_sound/LICENSE` | `packages/novel_sound/`, `lib/features/novel_sound/novel_sound_entry_page.dart`, `assets/` | 迁入小说书城/阅读器、TXT/EPUB 导入、书架/备份/WebDAV、系统朗读/有声书、短剧/漫剧/漫画、离线缓存及其 Rust 核心和 Android 桥接；从“我的”打开独立子应用。官方上游支持 Android/Windows；未接入私有服务，用户配置的 WebDAV/AI 等服务仍需自备。 |
 | [mikufoxxx/Wenku8_Flutter](https://github.com/mikufoxxx/Wenku8_Flutter) | `ebcd7f1891b54a92fc045c372974d70ec829f10a` | 上游随附 GPL-2.0 `LICENSE` 与 GPL-3.0 文本；本地 `PORTING.md` 保留原项目对两份文本适用范围未作判定的说明 | `packages/novel_sound/lib/widgets/wenku/`, `assets/licenses/wenku8/` | Novel Sound 内置 UI/阅读展示移植；保留上游 `NOTICE`、两份许可证和移植记录，不重新指定其许可。 |

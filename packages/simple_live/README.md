@@ -21,6 +21,10 @@
 
 去除桌面端与手机端的冗余模块，聚焦于**大屏遥控器交互体验**、**低功耗与播放流畅度**、**无中心服务器的本地化账号安全**以及**局域网无线管理协同**。
 
+### Dashboard 中的完整上游源码
+
+Dashboard 将 `xiaoyaocz/dart_simple_live` 的完整上游项目树保存在 [`upstream/`](upstream/)，锁定提交为 `ba828e6783b176ea5709fcd09f0eb01dfaceeb51`。目录内保留原始移动版、TV 版、核心、控制台、资源、测试、许可证和工程配置。Dashboard 当前使用的宿主适配代码保留在同级应用目录中；上游 Git 历史保存在 `documents/migration_backups/dart_simple_live-ba828e6783b1.bundle`。
+
 ---
 
 ## ✨ 核心特性

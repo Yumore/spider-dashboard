@@ -1,6 +1,6 @@
-# 开源内容工程能力集成记录（2026-11-08）
+# 开源内容工程能力集成记录（更新至 2026-11-15）
 
-日期：2026-11-08
+更新日期：2026-11-15（初次记录：2026-11-08）
 
 ## 范围与决策
 
@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | [czgyz/hongguo](https://github.com/czgyz/hongguo) | `b0b56ce18f2d66cdde715439eeaea7472d461301` | 短剧工作台、Go 核心/FFI、Android 桥接、站源目录、播放器、本地下载、媒体库与红果原生弹幕接入视频/短剧目录；弹幕分页请求复用当前郑果播放会话。 |
 | [wzgrx/PureLive](https://github.com/wzgrx/PureLive) | `9bd38aaf10e5bd7c8db24c27af82f433507c1917` | `packages/pure_live/` 中的主应用及直播能力包通过 `PureLiveEmbeddedPage` 接入直播目录，初始化路径与宿主主题独立适配。 |
-| [xiaojiulala/dart_simple_live](https://github.com/xiaojiulala/dart_simple_live) | `da2a0fdc9d9ca376bd3365e80a4589699a7b93b4` | 完整保留移动版、TV 版、核心、控制台和第三方 Dart 包。直播入口在 Android 大屏使用 TV 专版，其余 IO 平台使用移动/桌面版；两者使用独立 Hive 目录和宿主主题。 |
+| [xiaojiulala/dart_simple_live](https://github.com/xiaojiulala/dart_simple_live) | `da2a0fdc9d9ca376bd3365e80a4589699a7b93b4` | 完整保留移动版、TV 版、核心、控制台和第三方 Dart 包。直播入口在 Android 大屏使用 TV 专版，其余 IO 平台使用移动/桌面版；两者使用独立 Hive 目录和宿主主题。2026-11-15 将 xiaoyaocz 上游完整工作树（`ba828e6783b176ea5709fcd09f0eb01dfaceeb51`）并入 `packages/simple_live/upstream/`，包含原始资源、测试和工程配置；活动入口仍使用宿主适配版，完整上游历史保存在 Git bundle。 |
 | [kelstna/Kazumi-WebDAV](https://github.com/kelstna/Kazumi-WebDAV) | `d4c4ac4c50b0aad3479d97e68a9c21dbc1670941` | `KazumiEmbeddedPage` 接入动漫目录，保留 XPath 规则、WebDAV、字幕与音轨、ASS 字体、下载和历史；嵌入时跳过原桌面窗口生命周期。 |
 | [youniube/zhenguo-app](https://github.com/youniube/zhenguo-app) | `2cfc49345180325c180d7de03154e6874013cae1` | 新版 Dart 业务与 Go 原生能力合并到既有短剧工作台，增加跨源搜索、片库导入导出、直播目录、播放与源诊断、传输和 YSP 模块；与 #1 的站源扩展合并，避免双应用和双状态库。 |
 | [superxyline/purelive](https://github.com/superxyline/purelive) | `49de6d04bb90d1df1b1015ac342c7104a768062f` | NAS Node 服务、Web 管理端和 Compose/Docker 部署源码放入 `packages/purelive_nas/`；直播目录增加自托管服务地址、健康检查和管理端打开入口。 |
