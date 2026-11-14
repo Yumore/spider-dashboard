@@ -4,6 +4,7 @@ import 'package:dashboard/app/config_helper.dart';
 import 'package:dashboard/app/my_app.dart';
 import 'package:dashboard/app/platform/app_platform_bootstrap.dart';
 import 'package:dashboard/app/user_info.dart';
+import 'package:dashboard/features/comic/picacomic/core/comic_source_registry.dart';
 import 'package:dashboard/features/reading/book/analyzer/js_analyzer.dart';
 import 'package:dashboard/sql/comic_down.dart';
 import 'package:dashboard/sql/comic_history.dart';
@@ -32,6 +33,13 @@ void main() async {
   JsEngine.instance.enabled =
       ConfigHelper.prefs.getBool(JsEngine.enabledPreferenceKey) ?? false;
   await initDatabase();
+  await ComicSourceRegistry.init();
+  if (ComicSourceRegistry.tagDictionaryLoadError case final error?) {
+    debugPrint('PicaComic 标签词典不可用：$error');
+  }
+  for (final entry in ComicSourceRegistry.sourceInitializationErrors.entries) {
+    debugPrint('PicaComic 来源 ${entry.key} 初始化失败：${entry.value}');
+  }
 
   runApp(
     MultiProvider(

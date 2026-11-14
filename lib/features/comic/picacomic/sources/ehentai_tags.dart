@@ -1,12 +1,8 @@
 /// Embedded e-hentai tag vocabulary used by the `ehentai` category page.
 ///
-/// PicaComic read these lists from `assets/tags.json` via
-/// `TagsTranslation.readData()` (lib/tools/tags_translation.dart:19). The host
-/// pubspec does not register that asset and may not be edited, and PicaComic's
-/// asset itself is not part of the Dart source, so the full dictionary cannot be
-/// carried over. Each namespace therefore ships a small list of real e-hentai
-/// tags. The namespaces, their order, and the `categoryType` of every part are
-/// ported unchanged from lib/comic_source/built_in/ehentai.dart:72-125.
+/// The full upstream tag dictionary supplies category data at runtime. These
+/// curated values remain as a fallback if an asset cannot be loaded. The
+/// namespaces, their order, and category type match the upstream source.
 library;
 
 /// part title -> candidate tags, in the original part order.

@@ -8,6 +8,7 @@ import 'package:dashboard/features/comic/picacomic/core/comment.dart';
 import 'package:dashboard/features/comic/picacomic/core/explore_page_data.dart';
 import 'package:dashboard/features/comic/picacomic/core/explore_page_type.dart';
 import 'package:dashboard/features/comic/picacomic/core/favorite_data.dart';
+import 'package:dashboard/features/comic/picacomic/core/picacomic_tag_translator.dart';
 import 'package:dashboard/features/comic/picacomic/core/random_category_part_with_runtime_data.dart';
 import 'package:dashboard/features/comic/picacomic/core/ranking_data.dart';
 import 'package:dashboard/features/comic/picacomic/core/res.dart';
@@ -71,7 +72,10 @@ final ComicSource ehentaiSource = ComicSource(
       for (final title in ehentaiCategoryPartTitles)
         RandomCategoryPartWithRuntimeData(
           title,
-          () => ehentaiNamespaceTags[title] ?? const <String>[],
+          () => PicacomicTagTranslator.tagsForNamespace(
+            title,
+            fallback: ehentaiNamespaceTags[title] ?? const <String>[],
+          ),
           20,
           title == 'character' ? 'search' : 'search_with_namespace',
         ),
@@ -81,12 +85,7 @@ final ComicSource ehentaiSource = ComicSource(
     load: (category, param, options, page) =>
         _searchPagerFor(param ?? category).load(page),
     rankingData: RankingData(
-      options: const {
-        '15': '昨天',
-        '13': '本月',
-        '12': '今年',
-        '11': '全部',
-      },
+      options: const {'15': '昨天', '13': '本月', '12': '今年', '11': '全部'},
       load: (option, page) {
         final type = int.tryParse(option) ?? 15;
         return _network().getLeaderBoardByPage(type, page);
@@ -145,7 +144,9 @@ final ComicSource ehentaiSource = ComicSource(
     final res = await network.getGalleryInfo(id);
     if (res.error) return Res.fromErrorRes(res);
     final gallery = res.data;
-    final readerPages = gallery.maxPage <= 0 ? 1 : (gallery.maxPage / 20).ceil();
+    final readerPages = gallery.maxPage <= 0
+        ? 1
+        : (gallery.maxPage / 20).ceil();
     final thumbnailKey = gallery.auth?['thumbnailKey'];
     final largeThumbnailPages = thumbnailKey == null
         ? null
@@ -157,9 +158,7 @@ final ComicSource ehentaiSource = ComicSource(
         gallery.coverPath,
         '${gallery.type}    ${gallery.time}',
         gallery.tags,
-        {
-          for (var i = 1; i <= readerPages; i++) '$i': '第 $i 页',
-        },
+        {for (var i = 1; i <= readerPages; i++) '$i': '第 $i 页'},
         gallery.thumbnails.isEmpty ? null : gallery.thumbnails,
         largeThumbnailPages == null
             ? null
@@ -243,22 +242,20 @@ EhGalleriesPager _explorePager(String path) => _explorePagers.putIfAbsent(
   () => _newPager(() => _network().getGalleries('${_network().baseUrl}$path')),
 );
 
-EhGalleriesPager _favoritePager(String folderId) =>
-    _favoritePagers.putIfAbsent(
-      folderId,
-      () => _newPager(
-        () => _network().getGalleries(
-          EhentaiRequests.favoritesUrl(folderId),
-          favoritePage: true,
-        ),
-      ),
-    );
+EhGalleriesPager _favoritePager(String folderId) => _favoritePagers.putIfAbsent(
+  folderId,
+  () => _newPager(
+    () => _network().getGalleries(
+      EhentaiRequests.favoritesUrl(folderId),
+      favoritePage: true,
+    ),
+  ),
+);
 
-EhGalleriesPager _searchPagerFor(String keyword) =>
-    _searchPagers.putIfAbsent(
-      'category:$keyword',
-      () => _newPager(() => _network().search(keyword)),
-    );
+EhGalleriesPager _searchPagerFor(String keyword) => _searchPagers.putIfAbsent(
+  'category:$keyword',
+  () => _newPager(() => _network().search(keyword)),
+);
 
 int? _intAt(List<String> values, int index) {
   if (index >= values.length) return null;

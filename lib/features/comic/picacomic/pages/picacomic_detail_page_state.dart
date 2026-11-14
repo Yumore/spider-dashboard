@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dashboard/features/comic/picacomic/controllers/picacomic_detail_controller.dart';
+import 'package:dashboard/features/comic/picacomic/core/picacomic_tag_translator.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_detail_page.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_reader_page.dart';
 import 'package:flutter/material.dart';
@@ -168,6 +169,12 @@ class PicacomicDetailPageState extends State<PicacomicDetailPage> {
 
   Widget _tags() {
     final tags = _controller.comic?.tags ?? const <String, List<String>>{};
+    final locale = Localizations.localeOf(context);
+    final translate = const {
+      'ehentai',
+      'hitomi',
+      'nhentai',
+    }.contains(widget.sourceKey);
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -183,12 +190,20 @@ class PicacomicDetailPageState extends State<PicacomicDetailPage> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      '${entry.key}:',
+                      '${translate ? PicacomicTagTranslator.translateNamespace(entry.key, locale) : entry.key}:',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     for (final tag in entry.value)
                       Chip(
-                        label: Text(tag),
+                        label: Text(
+                          translate
+                              ? PicacomicTagTranslator.translateTag(
+                                  tag,
+                                  locale,
+                                  namespace: entry.key,
+                                )
+                              : tag,
+                        ),
                         visualDensity: VisualDensity.compact,
                       ),
                   ],

@@ -14,6 +14,18 @@
 | 直播 / 媒体 | PureLive、SimpleLive、MyTV、EasyTV、Twitch VOD/Clip 与统一媒体入口 | NAS、WebDAV、直播账号和频道源由用户提供；VioClass 登录态、Drops、Whispers、通知和实时 DVR 仍未迁入 |
 | 爬虫 / 创作 | 本地网页采集工作流、日志/配置入口；短剧/漫剧本地剧本与分镜工作台 | 需要专有服务的 Spider、AI 模型/数字人/视频生成等能力未伪装成离线可用功能 |
 
+## 三方来源功能盘点
+
+第三方声明表的 25 条记录分成三类，避免把参考仓库或依赖库误算成完整应用迁入：
+
+| 记录类型 | 来源 | 当前工程的落点与结论 |
+| --- | --- | --- |
+| 业务源码（11） | hongguo、PureLive、SimpleLive、Kazumi-WebDAV、Novel Sound、zhenguo-app、PureLive NAS、VioClass、Cuipi TV、Reveric、PicaComic | 已按业务入口接入；其中 VioClass 只迁入公开 Twitch VOD/Clip 路径，Reveric 按宿主模型重写创作工作流，Cuipi 只接入 TVBox/LibreTV 与 IPTV 协议子集。各自未迁范围与私有服务边界见第三方声明表及 2026-11-08 集成记录。 |
+| 运行依赖/算法组件（9） | Wenku8 UI、Liquid Glass、FFmpeg `af_atempo`、kissfft、tiny-AES、Windows WebView、flutter_js、Papyrus Reader、Dart PDF | 作为小说展示、音频处理、阅读器、书源规则执行、PDF 检查/合并等真实功能的依赖或移植组件使用，不是独立内容源。跨平台行为和上游依赖的运行结果仍须按目标平台单独验收。 |
+| 参考/重叠（5） | ym_live_stream、djshxjsh233/pure_live、FiveHair/pure_live、pure_live_TV、DreamMangaReader | 已检查但未另嵌一套重复应用：前四项与现有直播适配重叠或要求定制鸿蒙工具链；DreamMangaReader 只作为本地 TXT 场景参考，未复制其脚本源协议。 |
+
+这次逐代码路径复核集中在实际能本机闭环的漫画来源层；以上未迁范围仍按记录的协议、服务、平台和账号边界处理，不以占位页面宣称已完整支持。
+
 此前候选来源、版本和功能边界继续以 [2026-11-08 集成记录](../demands/2026-11-08-open-source-repository-integration.md) 为准；完整来源、提交和许可证以 [第三方声明表](../THIRD_PARTY_NOTICES.md) 为准。
 
 ## 本轮发现与修改
@@ -23,15 +35,26 @@
 3. **PicaComic 语言筛选声明未接到界面。** 为声明 `enableLanguageFilter` 的搜索来源加入“全部/中文/English/日本語”筛选，并在 nhentai 分类结果中提供对应选项。用户明确在关键词里输入 `language:` 时保留该条件，避免自动追加冲突过滤。筛选变更会重新请求第一页，过期网络响应不会覆盖新结果。
 4. **PicaComic 来源许可记录缺失。** 从本机保存的上游快照确认仓库地址、提交 `155cf0c6d7018f9521f8c375b142bafd85e47a4d` 和 MIT 文本；将原始 LICENSE 恢复到来源目录，并加入第三方声明表。
 
+## 本轮进一步发现与修复
+
+1. **PicaComic 六个内置源没有生产初始化调用。** 来源注册表默认空列表，只有测试曾调用 `init()`；应用启动时未加载来源偏好或 `picacg` 初始化参数，因此漫画目录、搜索、详情和阅读默认找不到来源。现在启动阶段加载标签数据并初始化全部内置源；单个来源偏好加载失败会记录来源级错误并继续注册其他来源。
+2. **nhentai 标签 ID 名称表残缺。** 先前只包含约 59 个标签，现从锁定的 PicaComic 提交补齐完整 720 项映射。
+3. **E-Hentai 分类词表被截成每类十项。** 现把 MIT 上游快照中的完整简体/繁体标签 JSON 纳入 Flutter assets，并按原有 9 个分类命名空间提供标签；词表规模分别为 male 542、female 584、parody 2,205、character 4,733、mixed 20、artist 12,700、group 12,696、cosplayer 90、other 58。
+4. **来源声明的标签建议和标签翻译没有用户入口。** 为 E-Hentai 与 nhentai 搜索框接入有界标签补全；分类页与详情页按系统中文 locale 翻译命名空间、类别和标签，支持简体、繁体（台湾/香港/澳门或 Hant）词典，其他语言保留站点原文。
+5. **之前完成的分类排序/筛选、搜索排序/语言筛选修复继续有效。** 本轮没有覆盖其请求代次和分页状态逻辑。
+
 ## 未纳入本轮的边界
 
 - 未批量升级上游提交；当前来源版本与宿主适配仍按第三方声明表锁定。
 - 未实现需要用户服务地址、凭据或自托管后端的在线能力，也未把社交演示的静态数据称为在线聊天。
 - PicaComic 的语言选项是页面内选择，不持久化复刻上游全局 `appdata.settings[69]`；类别随机/最新入口继续隐藏排序/语言选项。
 - 本轮没有添加 OCR，也没有把 PicaComic 的 WebView 登录页、推荐按钮和用户 JavaScript 扩展执行器接入宿主。
+- 本轮没有升级 25 条来源记录的上游提交，也未把参考/重叠仓库复制成重复客户端；远端账号、站点可用性、私有服务和特殊平台仍需对应配置与目标设备验证。
 
 ## 验证
 
-- `dart format`：本轮 5 个 Dart 文件格式化完成。
-- `flutter analyze --no-pub`：对本轮 5 个漫画控制器/页面/来源文件运行，未发现问题。
+- `dart format`：本轮 10 个 Dart 文件格式化完成。
+- `flutter analyze --no-pub`：对本轮 10 个 Dart 文件运行；目标文件分析无诊断。
+- 确认两份翻译 JSON 均可解析，字段覆盖 12 个命名空间；原始简体/繁体文件大小分别为 1,342,278 / 1,342,258 字节。
+- `git diff --check` 通过。
 - 未运行测试、未构建 APK、未连接服务端或做设备/UI 验收；静态分析不证明源站响应、网络分页、图片显示或真机交互。

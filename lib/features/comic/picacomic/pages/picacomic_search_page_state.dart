@@ -1,4 +1,6 @@
 import 'package:dashboard/features/comic/picacomic/controllers/picacomic_search_controller.dart';
+import 'package:dashboard/features/comic/picacomic/core/picacomic_search_suggestion.dart';
+import 'package:dashboard/features/comic/picacomic/core/picacomic_tag_translator.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_comic_tile.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_detail_page.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_search_page.dart';
@@ -48,18 +50,7 @@ class PicacomicSearchPageState extends State<PicacomicSearchPage> {
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _keyword,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: _controller.search,
-                        decoration: const InputDecoration(
-                          hintText: '关键字',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
+                    Expanded(child: _searchField(context)),
                     const SizedBox(width: 8),
                     FilledButton(
                       onPressed: () => _controller.search(_keyword.text),
@@ -86,6 +77,77 @@ class PicacomicSearchPageState extends State<PicacomicSearchPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _searchField(BuildContext context) {
+    final source = _controller.source;
+    final suggestionsEnabled =
+        _controller.searchPageData?.enableTagsSuggestions ?? false;
+    final locale = Localizations.localeOf(context);
+    return RawAutocomplete<PicacomicSearchSuggestion>(
+      key: ValueKey(source?.key),
+      textEditingController: _keyword,
+      displayStringForOption: (suggestion) => suggestion.query,
+      optionsBuilder: (value) {
+        if (!suggestionsEnabled || source == null) {
+          return const <PicacomicSearchSuggestion>[];
+        }
+        return PicacomicTagTranslator.suggestionsFor(
+          sourceKey: source.key,
+          query: value.text,
+          locale: locale,
+        );
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) {
+            onFieldSubmitted();
+            _controller.search(_keyword.text);
+          },
+          decoration: const InputDecoration(
+            hintText: '关键字',
+            isDense: true,
+            border: OutlineInputBorder(),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final values = options.toList(growable: false);
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: values.length,
+                itemBuilder: (context, index) {
+                  final suggestion = values[index];
+                  final highlightedIndex = AutocompleteHighlightedOption.of(
+                    context,
+                  );
+                  return ListTile(
+                    dense: true,
+                    selected: index == highlightedIndex,
+                    title: Text(suggestion.label),
+                    subtitle: suggestion.label == suggestion.query
+                        ? null
+                        : Text(suggestion.query),
+                    onTap: () => onSelected(suggestion),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

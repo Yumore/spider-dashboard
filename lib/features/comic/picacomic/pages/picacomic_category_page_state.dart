@@ -1,5 +1,6 @@
 import 'package:dashboard/features/comic/picacomic/controllers/picacomic_category_controller.dart';
 import 'package:dashboard/features/comic/picacomic/core/category_comics_options.dart';
+import 'package:dashboard/features/comic/picacomic/core/picacomic_tag_translator.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_category_page.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_comic_tile.dart';
 import 'package:dashboard/features/comic/picacomic/pages/picacomic_detail_page.dart';
@@ -79,6 +80,8 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
   Widget _partsBar() {
     final parts = _controller.parts;
     if (parts.length <= 1) return const SizedBox.shrink();
+    final locale = Localizations.localeOf(context);
+    final translate = _supportsTagTranslation;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -88,7 +91,14 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(parts[i].title),
+                label: Text(
+                  translate
+                      ? PicacomicTagTranslator.translateNamespace(
+                          parts[i].title,
+                          locale,
+                        )
+                      : parts[i].title,
+                ),
                 selected: _controller.partIndex == i,
                 onSelected: (_) => _controller.selectPart(i),
               ),
@@ -101,6 +111,8 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
   Widget _categoriesBar() {
     final categories = _controller.categories;
     if (categories.isEmpty) return const SizedBox.shrink();
+    final locale = Localizations.localeOf(context);
+    final translate = _supportsTagTranslation;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -110,7 +122,14 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
-                label: Text(categories[i]),
+                label: Text(
+                  translate
+                      ? PicacomicTagTranslator.translateTag(
+                          categories[i],
+                          locale,
+                        )
+                      : categories[i],
+                ),
                 selected: _controller.categoryIndex == i,
                 onSelected: (_) => _controller.selectCategory(i),
               ),
@@ -119,6 +138,9 @@ class PicacomicCategoryPageState extends State<PicacomicCategoryPage> {
       ),
     );
   }
+
+  bool get _supportsTagTranslation =>
+      const {'ehentai', 'nhentai'}.contains(_controller.source?.key);
 
   Widget _optionsBar() {
     final options = _controller.ranking

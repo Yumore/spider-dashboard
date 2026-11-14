@@ -1,6 +1,7 @@
 import 'package:dashboard/features/comic/picacomic/core/comic_source.dart';
 import 'package:dashboard/features/comic/picacomic/core/comic_source_loader.dart';
 import 'package:dashboard/features/comic/picacomic/core/history_type.dart';
+import 'package:dashboard/features/comic/picacomic/core/picacomic_tag_translator.dart';
 import 'package:dashboard/features/comic/picacomic/sources/ehentai_source.dart';
 import 'package:dashboard/features/comic/picacomic/sources/hitomi_source.dart';
 import 'package:dashboard/features/comic/picacomic/sources/htmanga_source.dart';
@@ -29,6 +30,12 @@ class ComicSourceRegistry {
 
   /// Error thrown by the last user-source load, if any.
   static Object? lastLoadError;
+
+  /// Errors loading individual bundled sources; the source remains registered.
+  static final Map<String, Object> sourceInitializationErrors = {};
+
+  /// Error loading the optional localized tag dictionaries.
+  static Object? tagDictionaryLoadError;
 
   static ComicSource? find(String key) {
     for (final source in _sources) {
@@ -68,12 +75,25 @@ class ComicSourceRegistry {
   }) async {
     _sources.clear();
     lastLoadError = null;
+    sourceInitializationErrors.clear();
+    tagDictionaryLoadError = null;
+
+    try {
+      await PicacomicTagTranslator.initialize();
+    } catch (error) {
+      tagDictionaryLoadError = error;
+    }
+
     for (final source in builtInSources) {
       if (enabledKeys != null && !enabledKeys.contains(source.key)) continue;
       _sources.add(source);
-      await source.loadData();
-      final initData = source.initData;
-      if (initData != null) await initData(source);
+      try {
+        await source.loadData();
+        final initData = source.initData;
+        if (initData != null) await initData(source);
+      } catch (error) {
+        sourceInitializationErrors[source.key] = error;
+      }
     }
     if (userSourceLoader != null) {
       try {
