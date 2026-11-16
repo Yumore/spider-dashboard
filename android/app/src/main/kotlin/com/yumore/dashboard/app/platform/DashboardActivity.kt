@@ -1,6 +1,8 @@
 package com.yumore.dashboard.app.platform
 
+import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.content.pm.ActivityInfo
@@ -38,6 +40,9 @@ class DashboardActivity : FlutterActivity() {
     private var volumeKeyEnabled = false
     private var volumeChannel: MethodChannel? = null
     private var hapticsChannel: MethodChannel? = null
+    private var guomuDeepLinkChannel: MethodChannel? = null
+    private var guomuEntryChannel: MethodChannel? = null
+    private var pendingGuomuDeepLink: String? = null
     internal var isResumed = false
 
     override fun getFlutterShellArgs(): FlutterShellArgs =
@@ -50,6 +55,9 @@ class DashboardActivity : FlutterActivity() {
         playbackEnvironment = ShortDramaPlaybackEnvironment(this)
         ffmpegRunner = ShortDramaFfmpegRunner(this)
         super.onCreate(savedInstanceState)
+        pendingGuomuDeepLink = intent?.dataString?.takeIf {
+            Uri.parse(it).scheme == "guomu"
+        }
         displayController.applyCurrentOrientation()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
@@ -124,6 +132,58 @@ class DashboardActivity : FlutterActivity() {
                 }
             }
         }
+        guomuDeepLinkChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.guomu.huangguo/deeplink",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialLink" -> {
+                        result.success(pendingGuomuDeepLink)
+                        pendingGuomuDeepLink = null
+                    }
+                    "consumeInitialLink" -> {
+                        pendingGuomuDeepLink = null
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+        guomuEntryChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.yumore.dashboard/guomu-entry",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                if (call.method != "getInitialLink") {
+                    result.notImplemented()
+                } else {
+                    result.success(pendingGuomuDeepLink)
+                }
+            }
+        }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.guomu.huangguo/share",
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "share") {
+                result.notImplemented()
+                return@setMethodCallHandler
+            }
+            val title = call.argument<String>("title").orEmpty()
+            val text = call.argument<String>("text").orEmpty()
+            val url = call.argument<String>("url").orEmpty()
+            val shareText = listOf(title, text, url)
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TITLE, title)
+                putExtra(Intent.EXTRA_TEXT, shareText)
+            }
+            startActivity(Intent.createChooser(sendIntent, "分享到"))
+            result.success(true)
+        }
         channelRouter = ShortDramaPlatformChannelRouter(
             activity = this,
             displayController = displayController,
@@ -131,6 +191,16 @@ class DashboardActivity : FlutterActivity() {
             playbackEnvironment = playbackEnvironment,
             ffmpegRunner = ffmpegRunner,
         ).also { it.attach(flutterEngine) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val link = intent.data?.takeIf { it.scheme == "guomu" }?.toString()
+            ?: return
+        pendingGuomuDeepLink = link
+        guomuDeepLinkChannel?.invokeMethod("link", link)
+        guomuEntryChannel?.invokeMethod("open", link)
     }
 
     override fun onPictureInPictureModeChanged(
@@ -146,6 +216,10 @@ class DashboardActivity : FlutterActivity() {
         hapticsChannel = null
         volumeChannel?.setMethodCallHandler(null)
         volumeChannel = null
+        guomuDeepLinkChannel?.setMethodCallHandler(null)
+        guomuDeepLinkChannel = null
+        guomuEntryChannel?.setMethodCallHandler(null)
+        guomuEntryChannel = null
         channelRouter?.detach()
         channelRouter = null
         super.cleanUpFlutterEngine(flutterEngine)

@@ -1,12 +1,14 @@
 # 第三方源码与许可记录
 
-更新日期：2026-11-15
+更新日期：2026-11-17
 
 本工程根许可证为 GNU AGPL-3.0。表内提交号界定迁移的上游快照；仓库未提供项目级 LICENSE 的来源按用户明确确认的复用授权处理。上游许可证、版权声明和随源码提供的第三方许可证保留在对应目录。
 
 | 来源 | 提交 | 上游许可 | 本地业务代码位置 | 接入方式与边界 |
 | --- | --- | --- | --- | --- |
+| [DearLicy/guomu](https://github.com/DearLicy/guomu) | `b2d61210d22a07fb021a9bfb510b2781cda665cd` (`main`, 2026-11-16) | GPL-3.0，完整文本保留于 `packages/guomu/LICENSE` | `packages/guomu/`, `lib/features/movie/movie_entry_catalog.dart`, Android/iOS/Web 宿主配置 | 完整迁入 Flutter 客户端、资源、测试和平台源码；新增嵌入式 Dashboard 入口、Android 分享/深链、iOS Workmanager 与 Live Activity 扩展、Web HLS 与媒体缓存桥接。仅调整包内资源/字体寻址、PointyCastle 兼容版本、Live Activity App Group 和仅在果幕页面打开时切换的 iOS 音频会话；变更详见需求记录。上游 `README.md`、`THIRD_PARTY_NOTICES.md` 与第三方许可证保留。 |
 | [czgyz/hongguo](https://github.com/czgyz/hongguo) | `b0b56ce18f2d66cdde715439eeaea7472d461301` | 仓库未提供项目级 LICENSE；用户确认有权复用 | `lib/features/short_drama/hongguo/`, `native/`, `android/app/src/main/kotlin/com/yumore/dashboard/shortdrama/` | 短剧目录、详情、播放、下载、本地库、设备互联、视频增强、Android 桥接和红果原生弹幕；与郑果播放会话及弹幕叠层联动 |
+| [video-dev/hls.js](https://github.com/video-dev/hls.js) | `1.7.4`（随 Guomu 上游快照） | Apache-2.0，见 `web/vendor/hls.LICENSE` | `web/vendor/hls.min.js`, `web/guomu-media-cache.js`, `web/hg-media-sw.js` | 供 Guomu Web 播放和 HLS 媒体缓存使用；保留上游许可证文本。 |
 | [wzgrx/PureLive](https://github.com/wzgrx/PureLive) | `9bd38aaf10e5bd7c8db24c27af82f433507c1917` | AGPL-3.0，见 `packages/pure_live/LICENSE` | `packages/pure_live/`, `lib/features/live/pure_live/` | 多平台直播、IPTV、弹幕、录制、多画面、后台播放、WebDAV、DLNA 及播放回退；从直播目录启动 |
 | [xiaojiulala/dart_simple_live](https://github.com/xiaojiulala/dart_simple_live) | `da2a0fdc9d9ca376bd3365e80a4589699a7b93b4` | GPL-3.0，见 `packages/simple_live/LICENSE` 与 `packages/simple_live/simple_live_tv_app/LICENSE.upstream` | `packages/simple_live/`, `lib/features/live/simple_live_host_page.dart`, `lib/features/live/simple_live_host_page_state.dart` | 手机/桌面版与 Android TV 专版共存；Android 大屏按逻辑宽度选择 TV 页面；QuickJS 与弹幕 fork 各自保留许可证 |
 | [xiaoyaocz/dart_simple_live](https://github.com/xiaoyaocz/dart_simple_live) | `ba828e6783b176ea5709fcd09f0eb01dfaceeb51` (`master`, 2026-01-23) | GPL-3.0，见 `packages/simple_live/upstream/LICENSE` | `packages/simple_live/upstream/` | 完整迁入上游工作树（移动版、TV 版、核心、控制台、资产、测试与项目配置）；Dashboard 继续使用已适配的宿主运行代码；完整 Git 历史见 `documents/migration_backups/dart_simple_live-ba828e6783b1.bundle` |

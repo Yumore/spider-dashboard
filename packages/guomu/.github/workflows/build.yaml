@@ -1,0 +1,151 @@
+name: Build Guomu
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: guomu-main
+  cancel-in-progress: false
+
+env:
+  HG_API_BASE: https://d1716d.bmikbxhi.cc
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.35.1
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  build-web:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.35.1
+          cache: true
+      - run: flutter pub get
+      - name: Build static web
+        run: |
+          flutter build web \
+            --release \
+            --pwa-strategy=none \
+            --no-wasm-dry-run \
+            --base-href="/guomu/" \
+            --dart-define="HG_API_BASE=$HG_API_BASE" \
+            --dart-define="HG_WEB_PROXY_URL=${{ vars.HG_WEB_PROXY_URL }}" \
+            --dart-define="HG_WEB_PREVIEW_ONLY=true"
+          touch build/web/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy-pages:
+    needs: build-web
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  build-android:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.35.1
+          cache: true
+      - run: flutter pub get
+      - name: Build APK
+        run: |
+          flutter build apk --release \
+            --dart-define="HG_API_BASE=$HG_API_BASE"
+          VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | cut -d+ -f1)"
+          cp build/app/outputs/flutter-apk/app-release.apk "Guomu-${VERSION}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guomu-android
+          path: Guomu-*.apk
+          if-no-files-found: error
+
+  build-ios:
+    needs: validate
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.35.1
+          cache: true
+      - name: Build unsigned IPA
+        run: bash tool/build_ipa_unsigned.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guomu-ios
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: error
+
+  release:
+    needs:
+      - build-android
+      - build-ios
+    if: ${{ github.ref == 'refs/heads/main' && always() && needs.build-android.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: guomu-*
+          merge-multiple: true
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | cut -d+ -f1)"
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "果幕 ${TAG}" --notes-file release-notes.md
+          else
+            gh release create "$TAG" \
+              --title "果幕 ${TAG}" \
+              --notes-file release-notes.md
+          fi
+          gh release upload "$TAG" release-assets/* --clobber

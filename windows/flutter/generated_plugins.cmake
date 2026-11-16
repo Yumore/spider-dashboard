@@ -18,18 +18,19 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_volume_controller
   flutter_webrtc
   media_kit_libs_windows_video
-  media_kit_video
   nsd_windows
   permission_handler_windows
   screen_brightness_windows
-  share_plus
   url_launcher_windows
+  share_plus
   volume_controller
+  media_kit_video
   webview_windows
   window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  flutter_local_notifications_windows
   jni
   sherpa_onnx_windows
   smtc_windows

@@ -49,6 +49,9 @@ class AppPlatformTraits {
   bool get supportsVideoPlayback =>
       isAndroid || isIOS || isMacOS || isWindows || isLinux;
 
+  /// Guomu's upstream `video_player` backends are Android, iOS and Web.
+  bool get supportsVideoPlayer => isAndroid || isIOS || isWeb;
+
   /// 应用内自更新（下载并安装安装包）：仅 Android/iOS 旧流程。
   bool get supportsSelfUpdate => isAndroid || isIOS;
 

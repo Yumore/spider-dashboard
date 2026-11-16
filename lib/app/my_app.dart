@@ -1,3 +1,4 @@
+import 'package:dashboard/app/app_navigation.dart';
 import 'package:dashboard/app/app_theme.dart';
 import 'package:dashboard/app/platform/app_messenger.dart';
 import 'package:dashboard/features/home/my_home_page.dart';
@@ -16,6 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final appTheme = context.watch<AppTheme>();
     return MaterialApp(
+      navigatorKey: dashboardNavigatorKey,
       scaffoldMessengerKey: AppMessenger.key,
       title: '动漫之家Flutter',
       theme: appTheme.themeFor(Brightness.light),

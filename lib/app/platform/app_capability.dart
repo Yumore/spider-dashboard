@@ -9,6 +9,7 @@ enum AppCapability {
   socket,
   screenBrightness,
   videoPlayback,
+  videoPlayer,
   shortDrama,
   selfUpdate,
 }
@@ -23,6 +24,7 @@ abstract final class AppCapabilities {
     AppCapability.socket => AppPlatform.supportsSocket,
     AppCapability.screenBrightness => AppPlatform.supportsScreenBrightness,
     AppCapability.videoPlayback => AppPlatform.supportsVideoPlayback,
+    AppCapability.videoPlayer => AppPlatform.supportsVideoPlayer,
     AppCapability.shortDrama => AppPlatform.isAndroid,
     AppCapability.selfUpdate => AppPlatform.supportsSelfUpdate,
   };

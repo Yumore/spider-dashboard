@@ -89,6 +89,8 @@ dependencies:
     path: packages/simple_live/simple_live_tv_app
   fqapp:
     path: packages/novel_sound
+  guomu:
+    path: packages/guomu
 
 dev_dependencies:
   flutter_test:
@@ -191,3 +193,5 @@ dependency_overrides:
   flutter_secure_storage_windows: ^4.2.2
   dbus: 0.8.0
   win32: ^6.0.0
+  workmanager_platform_interface: 0.9.3
+  workmanager_android: 0.9.2

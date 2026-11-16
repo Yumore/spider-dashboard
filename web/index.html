@@ -40,16 +40,16 @@
     </script>
     <!-- This script adds the flutter initialization JS code -->
     <script defer src="flutter.js"></script>
+    <script src="vendor/hls.min.js"></script>
+    <script src="guomu-media-cache.js"></script>
 </head>
 <body>
 <script>
     window.addEventListener('load', function(ev) {
       // Download main.dart.js
-      _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
-        }
-      }).then(function(engineInitializer) {
+      // Guomu registers the shared media worker. Do not let Flutter's legacy
+      // service-worker loader replace or unregister it.
+      _flutter.loader.loadEntrypoint({}).then(function(engineInitializer) {
         return engineInitializer.initializeEngine();
       }).then(function(appRunner) {
         return appRunner.runApp();

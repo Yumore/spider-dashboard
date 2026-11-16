@@ -18,6 +18,7 @@ import 'package:dashboard/features/shared/ui/content_tokens.dart';
 import 'package:dashboard/features/short_video/douyin/douyin_entry_page.dart';
 import 'package:dashboard/features/short_video/short_video_demo_page.dart';
 import 'package:dashboard/features/short_drama/short_drama_module_page_export.dart';
+import 'package:guomu/guomu.dart';
 import 'package:flutter/material.dart';
 
 /// Movie and short-video services reachable from the movie module.
@@ -110,6 +111,19 @@ final List<ContentEntrySection> movieEntryCatalog = [
         icon: Icons.live_tv_outlined,
         accent: ContentAccents.movie,
         builder: (_) => const ShortDramaModulePage(),
+      ),
+      ContentEntry(
+        id: 'guomu-short-drama',
+        requires: AppCapability.videoPlayer,
+        title: '果幕 · 黄果短剧',
+        subtitle: '发现、互动、沉浸播放、追更提醒与离线缓存',
+        icon: Icons.local_movies_outlined,
+        accent: ContentAccents.movie,
+        builder: (context) => GuomuEmbeddedPage(
+          onClose: () {
+            Navigator.of(context).maybePop();
+          },
+        ),
       ),
       ContentEntry(
         id: 'short-video-demo',

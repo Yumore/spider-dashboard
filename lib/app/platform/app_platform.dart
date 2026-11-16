@@ -46,6 +46,7 @@ abstract final class AppPlatform {
   static bool get supportsNativeToast => _traits.supportsNativeToast;
   static bool get supportsScreenBrightness => _traits.supportsScreenBrightness;
   static bool get supportsVideoPlayback => _traits.supportsVideoPlayback;
+  static bool get supportsVideoPlayer => _traits.supportsVideoPlayer;
   static bool get supportsSelfUpdate => _traits.supportsSelfUpdate;
 
   static String get channel => _traits.channel;

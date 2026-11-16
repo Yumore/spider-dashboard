@@ -1,6 +1,16 @@
-# 开源内容工程能力集成记录（更新至 2026-11-15）
+# 开源内容工程能力集成记录（更新至 2026-11-17）
 
-更新日期：2026-11-15（初次记录：2026-11-08）
+更新日期：2026-11-17（初次记录：2026-11-08）
+
+## 2026-11-17 DearLicy/guomu 果幕客户端完整集成
+
+- 上游：[`DearLicy/guomu`](https://github.com/DearLicy/guomu)，固定提交 `b2d61210d22a07fb021a9bfb510b2781cda665cd`（2026-11-16），GPL-3.0；完整源码、许可证、README、测试和第三方声明保存在 `packages/guomu/`。
+- Dashboard 在现有影视入口目录加入独立的“果幕 · 黄果短剧”入口；该入口运行上游五栏客户端和独立 `guomu.*` 本地状态，保留已有 Hongguo 短剧模块。系统 `guomu://video/<id>` 链接在冷启动或应用运行时会打开果幕并定位到视频。
+- 上游功能入口适用于 Android、iOS 与 Web。iOS 音频会话只在打开果幕时切为媒体播放，关闭页面时恢复进入果幕前的会话设置，避免改动 Dashboard 其他页面的音频行为。
+- 迁入的完整业务流包含首页/剧场/吃瓜/榜单/我的、分类与标签、搜索/推荐/影评、登录/注册、关注/点赞/收藏/评论、用户与创作者主页/消息、观看历史与续播、竖屏沉浸播放/横屏/倍速与手势、相邻视频预取、离线下载/HLS 缓存、追更与通知、自动源发现/手动源管理与回退、主题/文字设置、版本更新检查。
+- 平台运行链：Android 合并 Guomu 分享和深链 MethodChannel、冷启动入口、通知图标、后台任务及所需权限；iOS 合并 Workmanager/通知/分享/URL 桥接，并将上游 WidgetKit Live Activity 加入 Runner 工程，使用 App Group `group.com.nsapp.dashboard.guomu`；Web 保留 Dashboard Flutter 启动器，并加入 HLS.js、`window.guomuMediaCache` 和媒体 Service Worker。Flutter 旧版 loader 不再二次注册或注销该媒体 Worker，避免它覆盖 Guomu 的媒体缓存处理。
+- 本地适配：包内 source manifest 改为 package 资源路径；嵌入运行时使用 `packages/guomu/` 字体族；短剧外壳添加返回 Dashboard 操作并避免重复深链入口；Live Activity 使用宿主 App Group；PointyCastle 调整到 `^3.9.1`，因为果幕封面解密使用的 AES-CBC API 在该版本可用，同时满足现有 `crypton` 约束。此固定依赖图由 `flutter pub get` 解析。iOS 原生媒体会话会在退出果幕时恢复。
+- 完成范围：完整客户端代码和平台构件已迁入并接入导航/宿主清单；HGhub API 和登录服务、上游 Release、各视频源与实际播放取决于外部服务。此轮未运行测试、构建或设备 UI 验收；iOS Live Activities 实际启用还依赖发布签名配置允许该 App Group。
 
 ## 范围与决策
 
