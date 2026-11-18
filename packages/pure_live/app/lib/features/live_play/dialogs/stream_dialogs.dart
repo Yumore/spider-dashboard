@@ -74,6 +74,7 @@ class _RoomStreamPanelState extends State<RoomStreamPanel> {
   int? _quality;
   List<String>? _urls;
   List<LivePlayLine>? _lineInfo;
+  PlaybackLineChoices? _lineChoices;
   late int _line;
   String? _error;
   bool _busy = false;
@@ -110,7 +111,18 @@ class _RoomStreamPanelState extends State<RoomStreamPanel> {
     List<String>? urls;
     List<LivePlayLine>? metadata;
     try {
-      final resolution = await _room.site.resolvePlayUrls(detail: _room.room, quality: _room.qualities[index]);
+      final LivePlayUrlResolution resolution;
+      if (_room.isArchive) {
+        if (_room.archive?.requiresExternalAudio == true) {
+          throw StateError('Separate audio requires the owned player');
+        }
+        if (index != _room.qualityIndex) {
+          throw StateError('Select playback quality first');
+        }
+        resolution = LivePlayUrlResolution.lines(_room.session.plan?.lines ?? const []);
+      } else {
+        resolution = await _room.site.resolvePlayUrls(detail: _room.room, quality: _room.qualities[index]);
+      }
       if (resolution.inputRecipe != null) {
         // An owned source plays only inside the app (relay, session seat).
         error = i18n('toolbox_session_source');
@@ -121,7 +133,7 @@ class _RoomStreamPanelState extends State<RoomStreamPanel> {
         metadata = resolution.lines;
       }
     } on Object {
-      error = i18n('toolbox_get_url_failed');
+      error = i18n(_room.archive?.requiresExternalAudio == true ? 'archive_separate_audio' : 'toolbox_get_url_failed');
     }
     if (!mounted || request != _request) return;
     setState(() {
@@ -175,16 +187,21 @@ class _RoomStreamPanelState extends State<RoomStreamPanel> {
   String _lineName(int index) {
     final metadata = _lineInfo;
     final line = metadata != null && index < metadata.length ? metadata[index] : null;
-    return _playingQuality(_quality)
-        ? PlaybackLinePresentation.of(_room.session, telemetry: _room.telemetry).choiceName(index, line)
-        : playbackLineName(index, line: line);
+    return (_lineChoices ?? PlaybackLineChoices(_room.session, detailed: false)).choiceName(
+      index,
+      line,
+      playingQuality: _playingQuality(_quality),
+    );
   }
 
   @override
   Widget build(BuildContext context) => PlaybackLineBuilder(
     session: _room.session,
     telemetry: _room.telemetry,
-    builder: (context, _, _) => _contents(context),
+    builder: (context, _, lines) {
+      _lineChoices = lines;
+      return _contents(context);
+    },
   );
 
   Widget _contents(BuildContext context) {
@@ -250,18 +267,19 @@ class _RoomStreamPanelState extends State<RoomStreamPanel> {
         else ...[
           PanelGroupTitle(i18n('toolbox_select_quality')),
           for (final (index, quality) in qualities.indexed)
-            DialogOptionRow(
-              key: ValueKey('stream-quality-$index'),
-              label: platformQualityName(quality.quality),
-              description: _playingQuality(index) ? i18n('now_playing') : null,
-              selected: _playingQuality(index),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              trailing: _busy && _quality == index
-                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : null,
-              enabled: !_busy,
-              onTap: () => unawaited(_resolve(index)),
-            ),
+            if (!_room.isArchive || index == _room.qualityIndex)
+              DialogOptionRow(
+                key: ValueKey('stream-quality-$index'),
+                label: platformQualityName(quality.quality),
+                description: _playingQuality(index) ? i18n('now_playing') : null,
+                selected: _playingQuality(index),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                trailing: _busy && _quality == index
+                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : null,
+                enabled: !_busy,
+                onTap: () => unawaited(_resolve(index)),
+              ),
         ],
       ],
     );
@@ -271,6 +289,17 @@ class _RoomStreamPanelState extends State<RoomStreamPanel> {
     final urls = _urls ?? const <String>[];
     // The line that plays, when this is the quality that plays.
     final playing = _playingQuality(_quality) ? _room.session.state.lineIndex : null;
+    String? description(int index, String url) {
+      final origin = playbackLineOrigin(
+        _lineInfo != null && index < _lineInfo!.length ? _lineInfo![index] : LivePlayLine(url),
+      );
+      final parts = [
+        if (index == playing) i18n('now_playing'),
+        if ((_lineChoices?.detailed ?? false) && origin.isNotEmpty) origin,
+      ];
+      return parts.isEmpty ? null : parts.join(' · ');
+    }
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 16),
       children: [
@@ -284,7 +313,7 @@ class _RoomStreamPanelState extends State<RoomStreamPanel> {
           DialogOptionRow(
             key: ValueKey('stream-line-$index'),
             label: _lineName(index),
-            description: index == playing ? '${i18n('now_playing')} · $url' : url,
+            description: description(index, url),
             descriptionMaxLines: 1,
             selected: index == playing,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),

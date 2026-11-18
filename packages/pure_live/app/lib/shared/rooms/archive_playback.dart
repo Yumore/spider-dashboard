@@ -6,6 +6,31 @@ import 'package:live_vod/live_vod.dart';
 /// The common control surface of official replay players. Platform resolution
 /// and progress stores remain independent; live playback is never reused as VOD.
 abstract class ArchivePlaybackController extends ChangeNotifier {
+  double _rate = 1;
+
+  /// Selected speed; restricted to the native player's supported range.
+  double get rate => _rate;
+
+  /// Applies a preset or a 0.05 increment without reopening/starting playback.
+  Future<bool> setRate(double value) async {
+    if (!value.isFinite || value < 0.25 || value > 4 || (value * 20 - (value * 20).round()).abs() > 0.000001) {
+      return false;
+    }
+    try {
+      if (!await session.setRate(value)) return false;
+      _rate = value;
+      notifyListeners();
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Restores the selected rate after a quality/part change.
+  Future<void> restoreRate() async {
+    await session.setRate(_rate);
+  }
+
   /// Completes after asynchronous native disposal, so another decoder can resume.
   Future<void> get retirement;
 
@@ -17,6 +42,10 @@ abstract class ArchivePlaybackController extends ChangeNotifier {
 
   /// Current input position, including a pending seek.
   Duration get position;
+
+  /// Public recording clock, which may span a segment-anchored native input.
+  Duration get duration =>
+      session.state.duration > Duration.zero ? session.state.duration : video?.duration ?? Duration.zero;
 
   /// Server-offered renditions.
   List<ArchiveQuality> get qualities;
@@ -35,6 +64,9 @@ abstract class ArchivePlaybackController extends ChangeNotifier {
 
   /// Whether this source exposes a verified comment timeline.
   bool get supportsDanmaku => false;
+
+  /// A single external player URL would omit the separate DASH audio.
+  bool get requiresExternalAudio => false;
 
   /// Current comment visibility.
   bool get danmakuVisible => false;

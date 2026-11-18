@@ -427,11 +427,13 @@ class _ChatListState extends ConsumerState<ChatList> {
       text: i18n('bilibili_guest_names_hidden'),
       action: i18n('live_play_go_login'),
       onAction: () => unawaited(AppNavigator.toBiliBiliLogin()),
+      onDismiss: widget.controller.dismissNameHint,
     ),
     ChatNameHint.loginExpired => ChatNameHintBar(
       text: i18n('bilibili_login_expired_short'),
       action: i18n('bilibili_login_again'),
       onAction: () => unawaited(AppNavigator.toBiliBiliLogin()),
+      onDismiss: widget.controller.dismissNameHint,
     ),
   };
 
@@ -460,7 +462,7 @@ class _ChatListState extends ConsumerState<ChatList> {
       fontSize: watchSetting(ref, Settings.danmakuListFontSize),
       spacing: ChatSpacing.of(watchSetting(ref, Settings.danmakuListLineSpacing)),
     );
-    final hint = _nameHint();
+    final hint = names ? _nameHint() : null;
     // B06 c1: the hint stays above the lines (and the empty states); the
     // list keeps its place in the tree, so its scroll position, when the
     // hint comes or goes.
@@ -605,7 +607,7 @@ final class _RoomFacts {
 /// mark, [text] and a [action] button that logs in.
 class ChatNameHintBar extends StatelessWidget {
   /// Creates the line.
-  const new({required this.text, required this.action, required this.onAction, super.key});
+  const new({required this.text, required this.action, required this.onAction, required this.onDismiss, super.key});
 
   /// What happens to the names.
   final String text;
@@ -615,6 +617,9 @@ class ChatNameHintBar extends StatelessWidget {
 
   /// Opens the login.
   final VoidCallback onAction;
+
+  /// Dismisses for the current room visit, including reconnects and rotation.
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -644,6 +649,13 @@ class ChatNameHintBar extends StatelessWidget {
               style: TextButton.styleFrom(foregroundColor: scheme.onSecondaryContainer),
               onPressed: onAction,
               child: Text(action),
+            ),
+            IconButton(
+              key: const ValueKey('live-play-name-hint-dismiss'),
+              tooltip: i18n('close'),
+              color: scheme.onSecondaryContainer,
+              icon: const Icon(AppIcons.close, size: 18),
+              onPressed: onDismiss,
             ),
           ],
         ),
@@ -860,14 +872,16 @@ class ChatLineView extends StatelessWidget {
     if (fans.isEmpty) return const [];
     final level = message.fansLevel.trim();
     final scheme = theme.colorScheme;
-    final douyuColor = platform == SiteIds.douyu
+    final tierColor = platform == SiteIds.douyu
         ? douyuFanBadgeColor(int.tryParse(level) ?? 0, dark: theme.brightness == Brightness.dark)
+        : platform == SiteIds.huya
+        ? huyaFanBadgeColor(int.tryParse(level) ?? 0, dark: theme.brightness == Brightness.dark)
         : null;
     Color native(LiveMessageColor color) => Color.fromARGB(255, color.r, color.g, color.b);
     final colors = message.fansColors;
     final nativeStart = colors == null ? null : native(colors.start);
     final nativeEnd = colors?.end == null ? nativeStart : native(colors!.end!);
-    final chipBackground = nativeStart ?? douyuColor?.withValues(alpha: 0.16) ?? scheme.primary;
+    final chipBackground = nativeStart ?? tierColor?.withValues(alpha: 0.16) ?? scheme.primary;
     final lightest = nativeStart == null
         ? 0.0
         : [nativeStart.computeLuminance(), nativeEnd!.computeLuminance()].reduce((a, b) => a > b ? a : b);
@@ -876,9 +890,9 @@ class ChatLineView extends StatelessWidget {
         : [nativeStart.computeLuminance(), nativeEnd!.computeLuminance()].reduce((a, b) => a < b ? a : b);
     final chipInk = nativeStart != null
         ? ((darkest + 0.05) / 0.05 >= 1.05 / (lightest + 0.05) ? OnVideoColors.ground : OnVideoColors.foreground)
-        : douyuColor == null
+        : tierColor == null
         ? scheme.onPrimary
-        : _readableOn(douyuColor, Color.alphaBlend(chipBackground, background));
+        : _readableOn(tierColor, Color.alphaBlend(chipBackground, background));
     return [
       chatInline(
         ChatChip(

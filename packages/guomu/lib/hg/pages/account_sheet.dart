@@ -8,6 +8,7 @@ import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/secure_cover.dart';
 import 'edit_profile_sheet.dart';
 import 'login_sheet.dart';
+import '../widgets/hg_pressable.dart';
 
 Future<void> showAccountSheet(BuildContext context) async {
   final auth = context.read<AuthController>();
@@ -32,60 +33,15 @@ class _AccountSheet extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
-    final confirmed = await showHgAdaptiveSheet<bool>(
+    final confirmed = await showHgConfirmSheet(
       context,
-      barrierColor: Colors.black.withValues(alpha: 0.4),
-      child: Builder(
-        builder: (context) => Container(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-          decoration: BoxDecoration(
-            color: context.hgSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  '退出登录？',
-                  style: TextStyle(
-                    color: context.hgOnSurface,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '追剧和历史仍会保留在本机，重新登录后可继续同步账号数据。',
-                  style: TextStyle(
-                    color: context.hgMuted,
-                    fontSize: 12.5,
-                    height: 1.55,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(46),
-                    backgroundColor: const Color(0xFFC64F45),
-                  ),
-                  child: const Text('退出登录'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('取消'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      title: '退出登录？',
+      message: '追剧和历史仍会保留在本机，重新登录后可继续同步账号数据。',
+      confirmLabel: '退出登录',
+      destructive: true,
+      icon: Icons.logout_rounded,
     );
-    if (confirmed == true && context.mounted) {
+    if (confirmed && context.mounted) {
       await context.read<AuthController>().logout();
       if (context.mounted) Navigator.maybePop(context);
     }
@@ -106,15 +62,6 @@ class _AccountSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 9),
-            Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
@@ -134,8 +81,8 @@ class _AccountSheet extends StatelessWidget {
                           user.nickname,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF202124),
+                          style: TextStyle(
+                            color: context.hgOnSurface,
                             fontSize: 19,
                             fontWeight: FontWeight.w800,
                           ),
@@ -143,8 +90,8 @@ class _AccountSheet extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           'ID：${user.id}',
-                          style: const TextStyle(
-                            color: Color(0xFF88888D),
+                          style: TextStyle(
+                            color: context.hgMuted,
                             fontSize: 11.5,
                           ),
                         ),
@@ -164,7 +111,7 @@ class _AccountSheet extends StatelessWidget {
               icon: Icons.logout_rounded,
               title: '退出登录',
               subtitle: '保留本机缓存和播放历史',
-              color: const Color(0xFFC64F45),
+              color: theme.colorScheme.error,
               onTap: () => _logout(context),
             ),
             const SizedBox(height: 10),
@@ -193,7 +140,7 @@ class _AccountAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effective = color ?? Theme.of(context).colorScheme.onSurface;
-    return InkWell(
+    return HgInkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 13, 18, 13),
@@ -216,8 +163,10 @@ class _AccountAction extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF98989C),
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                       fontSize: 10.5,
                     ),
                   ),

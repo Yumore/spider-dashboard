@@ -10,6 +10,7 @@ import '../widgets/hg_components.dart';
 import '../widgets/secure_cover.dart';
 import 'login_sheet.dart';
 import 'tag_feed_page.dart';
+import '../widgets/hg_pressable.dart';
 
 Future<int?> showPlayerInfoSheet(
   BuildContext context, {
@@ -57,20 +58,11 @@ class _PlayerInfoSheetState extends State<_PlayerInfoSheet> {
       clipBehavior: Clip.antiAlias,
       child: ListView(
         shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
+        physics: const ClampingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         padding: EdgeInsets.zero,
         children: [
-          const SizedBox(height: 8),
-          Center(
-            child: Container(
-              width: 34,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.hgLine,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -230,7 +222,7 @@ class _SheetTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: Stack(
           alignment: Alignment.center,
@@ -292,7 +284,7 @@ class _EpisodeGrid extends StatelessWidget {
               ? HgColors.orange.withValues(alpha: 0.14)
               : context.hgSurfaceMuted,
           borderRadius: BorderRadius.circular(8),
-          child: InkWell(
+          child: HgInkWell(
             onTap: () => Navigator.of(context).pop(episode.number),
             borderRadius: BorderRadius.circular(8),
             child: Center(

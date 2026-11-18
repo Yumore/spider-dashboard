@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,6 +21,7 @@ import 'downloads_page.dart';
 import 'login_sheet.dart';
 import 'update_history_page.dart';
 import 'update_sheet.dart';
+import '../widgets/hg_pressable.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -100,11 +102,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _clearCache() async {
     if (_clearingCache) return;
-    final confirmed = await _showConfirmSheet(
+    final confirmed = await showHgConfirmSheet(
       context,
       title: '清除缓存？',
       message: '会清除内容、封面和已预加载的视频分片，不会退出登录，也不会删除收藏、历史或资料。',
       confirmLabel: '清除缓存',
+      icon: Icons.cleaning_services_outlined,
     );
     if (!confirmed || !mounted) return;
     setState(() {
@@ -129,12 +132,13 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _logout() async {
-    final confirmed = await _showConfirmSheet(
+    final confirmed = await showHgConfirmSheet(
       context,
       title: '退出登录？',
       message: '退出后本机仍会保留离线缓存、追剧进度和观看历史。',
       confirmLabel: '退出登录',
-      danger: true,
+      destructive: true,
+      icon: Icons.logout_rounded,
     );
     if (!confirmed || !mounted) return;
     await context.read<AuthController>().logout();
@@ -144,7 +148,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _editSource() async {
     final changed = await showHgAdaptiveSheetBuilder<bool>(
       context,
+      childScrollable: true,
       barrierColor: Colors.black.withValues(alpha: 0.4),
+      initialSize: 0.64,
       builder: (_) => const HgSourceEditorSheet(),
     );
     if (changed == true && mounted) {
@@ -291,6 +297,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: _notificationsEnabled,
                   onChanged: _setNotifications,
                 ),
+              ),
+              const _SettingsDivider(),
+              _SettingsRow(
+                leading: const _RowIcon(Icons.admin_panel_settings_outlined),
+                title: '系统权限',
+                subtitle: '通知、实时活动、后台 App 刷新和本地网络',
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: openAppSettings,
               ),
               const _SettingsDivider(),
               _SettingsRow(
@@ -453,7 +467,7 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return HgInkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
@@ -534,9 +548,6 @@ class _ThemeSheet extends StatelessWidget {
       (ThemeMode.dark, Icons.dark_mode_rounded, '深色', '低亮度环境下更舒适的观看体验'),
     ];
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.52,
-      ),
       decoration: BoxDecoration(
         color: context.hgSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -547,17 +558,6 @@ class _ThemeSheet extends StatelessWidget {
           shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(20, 9, 20, 18),
           children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: context.hgLine,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
             Text(
               '显示模式',
               style: TextStyle(
@@ -576,7 +576,7 @@ class _ThemeSheet extends StatelessWidget {
               Material(
                 color: context.hgSurfaceMuted,
                 borderRadius: BorderRadius.circular(14),
-                child: InkWell(
+                child: HgInkWell(
                   onTap: () async {
                     await controller.setMode(choice.$1);
                     if (context.mounted) Navigator.of(context).pop();
@@ -640,9 +640,6 @@ class HgReleaseNotesSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.82,
-      ),
       decoration: BoxDecoration(
         color: context.hgSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -652,15 +649,6 @@ class HgReleaseNotesSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 9),
-            Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5E5E7),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
               child: Row(
@@ -852,243 +840,158 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
   Widget build(BuildContext context) {
     final source = context.watch<SourceController>();
     final theme = Theme.of(context);
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.84,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(20, 9, 20, 24),
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '数据源',
-                    style: TextStyle(
-                      color: context.hgOnSurface,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: inset),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(20, 9, 20, 24),
+            children: [
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '数据源',
+                      style: TextStyle(
+                        color: context.hgOnSurface,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-                Text(
-                  '${source.sources.length} 个',
-                  style: TextStyle(color: context.hgMuted, fontSize: 11),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              widget.recovery
-                  ? '当前地址都无法连接。请手动填写一个可用地址，或重新获取官方线路。'
-                  : '客户端会通过本机网络从官方发布页和 GitHub 清单同步可用线路，也可以手动添加。',
-              style: TextStyle(
-                color: widget.recovery
-                    ? const Color(0xFFC64F45)
-                    : context.hgMuted,
-                fontSize: 11.5,
-                height: 1.5,
+                  Text(
+                    '${source.sources.length} 个',
+                    style: TextStyle(color: context.hgMuted, fontSize: 11),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 15),
-            OutlinedButton.icon(
-              onPressed: _refreshing ? null : _refresh,
-              icon: _refreshing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync_rounded, size: 18),
-              label: Text(_refreshing ? '正在同步…' : '自动获取最新地址'),
-            ),
-            const SizedBox(height: 16),
-            ...source.sources.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Material(
-                  color: item == source.baseUrl
-                      ? context.hgSurfaceHigh
-                      : context.hgSurfaceMuted,
-                  borderRadius: BorderRadius.circular(13),
-                  child: InkWell(
-                    onTap: () => _select(item),
+              const SizedBox(height: 5),
+              Text(
+                widget.recovery
+                    ? '当前地址都无法连接。请手动填写一个可用地址，或重新获取官方线路。'
+                    : '客户端会通过本机网络从官方发布页和 GitHub 清单同步可用线路，也可以手动添加。',
+                style: TextStyle(
+                  color: widget.recovery
+                      ? const Color(0xFFC64F45)
+                      : context.hgMuted,
+                  fontSize: 11.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 15),
+              OutlinedButton.icon(
+                onPressed: _refreshing ? null : _refresh,
+                icon: _refreshing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 18),
+                label: Text(_refreshing ? '正在同步…' : '自动获取最新地址'),
+              ),
+              const SizedBox(height: 16),
+              ...source.sources.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: item == source.baseUrl
+                        ? context.hgSurfaceHigh
+                        : context.hgSurfaceMuted,
                     borderRadius: BorderRadius.circular(13),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(13, 11, 8, 11),
-                      child: Row(
-                        children: [
-                          Icon(
-                            item == source.baseUrl
-                                ? Icons.radio_button_checked_rounded
-                                : Icons.radio_button_off_rounded,
-                            color: item == source.baseUrl
-                                ? HgColors.orange
-                                : const Color(0xFF9A9A9E),
-                            size: 19,
-                          ),
-                          const SizedBox(width: 9),
-                          Expanded(
-                            child: Text(
-                              item,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: context.hgOnSurface,
-                                fontSize: 12,
-                                fontWeight: item == source.baseUrl
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
+                    child: HgInkWell(
+                      onTap: () => _select(item),
+                      borderRadius: BorderRadius.circular(13),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(13, 11, 8, 11),
+                        child: Row(
+                          children: [
+                            Icon(
+                              item == source.baseUrl
+                                  ? Icons.radio_button_checked_rounded
+                                  : Icons.radio_button_off_rounded,
+                              color: item == source.baseUrl
+                                  ? HgColors.orange
+                                  : const Color(0xFF9A9A9E),
+                              size: 19,
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                item,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: context.hgOnSurface,
+                                  fontSize: 12,
+                                  fontWeight: item == source.baseUrl
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                          IconButton(
-                            onPressed: source.sources.length <= 1
-                                ? null
-                                : () => _remove(item),
-                            icon: const Icon(
-                              Icons.close_rounded,
-                              size: 17,
-                              color: Color(0xFF9A9A9E),
+                            IconButton(
+                              onPressed: source.sources.length <= 1
+                                  ? null
+                                  : () => _remove(item),
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                size: 17,
+                                color: Color(0xFF9A9A9E),
+                              ),
+                              visualDensity: VisualDensity.compact,
                             ),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _controller,
-              keyboardType: TextInputType.url,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _add(),
-              decoration: const InputDecoration(
-                hintText: '手动填写 https://example.com',
-                prefixIcon: Icon(Icons.link_rounded),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _controller,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _add(),
+                decoration: const InputDecoration(
+                  hintText: '手动填写 https://example.com',
+                  prefixIcon: Icon(Icons.link_rounded),
+                ),
               ),
-            ),
-            const SizedBox(height: 9),
-            FilledButton(
-              onPressed: _adding ? null : _add,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                backgroundColor: HgColors.ink,
+              const SizedBox(height: 9),
+              FilledButton(
+                onPressed: _adding ? null : _add,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46),
+                  backgroundColor: HgColors.ink,
+                ),
+                child: Text(_adding ? '添加中…' : '添加数据源'),
               ),
-              child: Text(_adding ? '添加中…' : '添加数据源'),
-            ),
-            if (_message != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _message!,
-                style: const TextStyle(color: Color(0xFF77777C), fontSize: 11),
-              ),
+              if (_message != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _message!,
+                  style: const TextStyle(
+                    color: Color(0xFF77777C),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
-}
-
-Future<bool> _showConfirmSheet(
-  BuildContext context, {
-  required String title,
-  required String message,
-  required String confirmLabel,
-  bool danger = false,
-}) async {
-  final result = await showHgAdaptiveSheetBuilder<bool>(
-    context,
-    barrierColor: Colors.black.withValues(alpha: 0.4),
-    builder: (context) => Container(
-      decoration: BoxDecoration(
-        color: context.hgSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 9, 20, 18),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: context.hgLine,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            const SizedBox(height: 22),
-            Text(
-              title,
-              style: TextStyle(
-                color: context.hgOnSurface,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              style: TextStyle(
-                color: context.hgMuted,
-                fontSize: 12.5,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 47,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: danger
-                      ? const Color(0xFFC64F45)
-                      : HgColors.ink,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(confirmLabel),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('取消'),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-  return result ?? false;
 }
 
 String _formatBytes(int bytes) {

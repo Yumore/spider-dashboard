@@ -8,6 +8,7 @@ import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
 import '../widgets/hg_refresh_indicator.dart';
 import 'tag_feed_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class TagsPage extends StatefulWidget {
   const TagsPage({super.key});
@@ -299,7 +300,7 @@ class _TagTile extends StatelessWidget {
       color: context.hgSurface,
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

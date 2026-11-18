@@ -28,6 +28,8 @@ import 'package:pure_live/features/live_play/player/recording_badge.dart';
 import 'package:pure_live/features/live_play/switch_room/room_switch_panel.dart';
 import 'package:pure_live/i18n/i18n.dart';
 import 'package:pure_live/routes/app_navigator.dart';
+import 'package:pure_live/shared/rooms/playback_hud.dart';
+import 'package:pure_live/shared/rooms/playback_hud_config.dart';
 import 'package:pure_live/shared/rooms/room_texts.dart';
 
 /// How far the shade under a control bar reaches past the bar into the
@@ -281,16 +283,20 @@ class VideoIconButton extends StatelessWidget {
 /// - portrait fullscreen (U.2b change 6): back, the title, follow, record and
 ///   the menu; under them the clock and battery, switch room, audio, cast and
 ///   picture-in-picture.
-class PlayerTopBar extends StatelessWidget {
+class PlayerTopBar extends ConsumerWidget {
   /// Creates the bar.
-  const new({required this.actions, super.key});
+  const new({required this.actions, this.showStatus = true, super.key});
 
   /// The player's actions.
   final PlayerBarActions actions;
 
+  /// Hidden controls leave the passive status row to the independent overlay.
+  final bool showStatus;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final arrangement = actions.arrangement;
+    final hud = PlaybackHudConfig.fromJson(watchSetting(ref, Settings.playbackHud));
     final portrait = arrangement == ControlsArrangement.portraitFullscreen;
     final Widget content = switch (arrangement) {
       ControlsArrangement.inline => SizedBox(
@@ -314,7 +320,30 @@ class PlayerTopBar extends StatelessWidget {
         child: Row(
           children: [
             _back(context),
-            const PlayerBattery(),
+            _StatusSlot(
+              visible: showStatus,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .3),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const PlayerBattery(),
+                      if (hud.compactHeader)
+                        PlaybackHudView(
+                          config: hud,
+                          telemetry: actions.controller.telemetry,
+                          controls: true,
+                          fullscreen: actions.display != RoomDisplay.inline,
+                          inline: true,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(width: 4),
             Expanded(child: _VideoTitle(controller: actions.controller)),
             ..._trailing(context, switchRoom: true),
@@ -372,15 +401,17 @@ class PlayerTopBar extends StatelessWidget {
     icon: const Icon(AppIcons.back),
   );
 
-  Widget _follow() => ListenableSelector<String>(
-    listenable: actions.controller,
-    selector: () => actions.controller.room.identityKey,
-    builder: (context, _, _) => FollowButton(
-      room: actions.controller.room,
-      latest: () => actions.controller.room,
-      place: FollowButtonPlace.video,
-    ),
-  );
+  Widget _follow() => actions.controller.isArchive && actions.controller.archiveSelection?.room == null
+      ? const SizedBox.shrink()
+      : ListenableSelector<String>(
+          listenable: actions.controller,
+          selector: () => actions.controller.room.identityKey,
+          builder: (context, _, _) => FollowButton(
+            room: actions.controller.archiveSelection?.room ?? actions.controller.room,
+            latest: () => actions.controller.archiveSelection?.room ?? actions.controller.room,
+            place: FollowButtonPlace.video,
+          ),
+        );
 
   /// Record and the room menu, as in the room's app bar (U.2c change 2);
   /// the landscape bar has room for the recording's [time] (U.2a2 c8). The
@@ -395,8 +426,13 @@ class PlayerTopBar extends StatelessWidget {
         ListenableSelector<String>(
           listenable: controller,
           selector: () => controller.room.identityKey,
-          builder: (context, _, _) =>
-              RecordButton(room: controller.room, latest: () => controller.room, onVideo: true, showTime: time),
+          builder: (context, _, _) => RecordButton(
+            room: controller.room,
+            latest: () => controller.room,
+            onVideo: true,
+            showTime: time,
+            enabled: !controller.isArchive,
+          ),
         ),
       RoomMenuButton(controller: controller, onVideo: true, onBars: onBars, onMenu: actions.onMenu),
     ];
@@ -656,14 +692,16 @@ class PlayerBottomBar extends ConsumerWidget {
       stream: controller.session.states,
       initialData: controller.session.state,
       builder: (context, snapshot) {
-        final paused = snapshot.data?.status == PlaybackStatus.paused;
+        final paused =
+            snapshot.data?.status == PlaybackStatus.paused ||
+            controller.isArchive && snapshot.data?.status == PlaybackStatus.completed;
         return VideoIconButton(
           key: const ValueKey('live-play-pause'),
           tooltip: i18n(paused ? 'live_play_play' : 'live_play_pause'),
           iconSize: 28,
           onPressed: () {
             actions.onInteract();
-            unawaited(controller.session.togglePlayPause());
+            unawaited(controller.togglePlayback());
           },
           icon: Icon(paused ? AppIcons.play : AppIcons.pause),
         );
@@ -986,4 +1024,39 @@ class _ShadedBar extends StatelessWidget {
       child,
     ],
   );
+}
+
+// Keep the title in place while the surrounding controls fade. Hidden status
+// owns no battery polling, clock timer or statistics subscription.
+class _StatusSlot extends StatefulWidget {
+  const new({required this.visible, required this.child});
+  final bool visible;
+  final Widget child;
+  @override
+  State<_StatusSlot> createState() => _StatusSlotState();
+}
+
+class _StatusSlotState extends State<_StatusSlot> {
+  final GlobalKey _measure = GlobalKey();
+  Size _last = Size.zero;
+  void _remember() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.visible) return;
+      final render = _measure.currentContext?.findRenderObject();
+      if (render is RenderBox && render.hasSize) _last = render.size;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.visible) return SizedBox.fromSize(size: _last);
+    _remember();
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        _remember();
+        return false;
+      },
+      child: SizeChangedLayoutNotifier(key: _measure, child: widget.child),
+    );
+  }
 }

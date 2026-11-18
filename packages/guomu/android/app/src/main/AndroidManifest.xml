@@ -14,7 +14,7 @@
    <application
         android:label="果幕"
         android:icon="@mipmap/ic_launcher"
-        android:enableOnBackInvokedCallback="false">
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:exported="true"
             android:name=".MainActivity"

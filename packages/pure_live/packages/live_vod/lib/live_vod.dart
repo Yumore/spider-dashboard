@@ -5,6 +5,7 @@
 library;
 
 export 'src/archive.dart';
+export 'src/bilibili_replay.dart';
 export 'src/client.dart';
 export 'src/danmaku.dart';
 export 'src/douyu/api.dart';
@@ -12,6 +13,7 @@ export 'src/douyu/models.dart';
 export 'src/douyu/sign.dart';
 export 'src/douyu/source.dart';
 export 'src/douyu/timeline.dart';
+export 'src/huya/anchor.dart';
 export 'src/huya/replay.dart';
 export 'src/models.dart';
 export 'src/music/audio_cache.dart';
@@ -24,6 +26,7 @@ export 'src/music/third_party.dart';
 export 'src/parse.dart';
 export 'src/pgc_api.dart';
 export 'src/pgc_models.dart';
+export 'src/soop/replay.dart';
 export 'src/store.dart';
 export 'src/streams.dart';
 export 'src/ugc_api.dart';

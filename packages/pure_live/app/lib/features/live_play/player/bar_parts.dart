@@ -34,6 +34,9 @@ class PlayerBattery extends StatefulWidget {
   /// Reads the level (percent), null for none.
   final Future<int?> Function() read;
 
+  // Keep the last figure through control-bar/floating-row transitions.
+  static final Expando<int> _recentLevels = Expando();
+
   @override
   State<PlayerBattery> createState() => _PlayerBatteryState();
 }
@@ -45,13 +48,16 @@ class _PlayerBatteryState extends State<PlayerBattery> {
   @override
   void initState() {
     super.initState();
+    _level = PlayerBattery._recentLevels[widget.read];
     unawaited(_refresh());
     _poll = Timer.periodic(const Duration(minutes: 1), (_) => unawaited(_refresh()));
   }
 
   Future<void> _refresh() async {
-    final level = await widget.read();
-    if (mounted && level != _level) setState(() => _level = level);
+    final read = widget.read;
+    final level = await read();
+    PlayerBattery._recentLevels[read] = level;
+    if (mounted && widget.read == read && level != _level) setState(() => _level = level);
   }
 
   @override
@@ -317,16 +323,14 @@ class PortraitModeButton extends ConsumerWidget {
         constraints: const BoxConstraints(minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
         onPressed: () async {
           onMenu?.call(true);
-          final width = MediaQuery.sizeOf(anchor).width;
           final chosen = await showSmallMenu(
             anchor,
-            title: i18n('portrait_fullscreen_display_mode'),
+            semanticLabel: i18n('portrait_fullscreen_display_mode'),
             entries: [for (final value in PortraitDisplayMode.values) portraitModeName(value)],
-            descriptions: [for (final value in PortraitDisplayMode.values) portraitModeDescription(value)],
+            tooltips: [for (final value in PortraitDisplayMode.values) portraitModeDescription(value)],
             current: mode.index,
             entryKey: 'portrait-mode',
             preferAbove: true,
-            width: (width - 24).clamp(200.0, 340.0),
           );
           onMenu?.call(false);
           if (chosen != null && chosen != mode.index) {

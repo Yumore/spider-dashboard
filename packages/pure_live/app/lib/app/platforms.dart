@@ -116,6 +116,7 @@ final class PlatformDeps {
     required this.cookies,
     required this.store,
     this.twitchFallbacks = const [],
+    this.xiaohongshuGuest,
     this.kickApi,
     this.iptv,
     this.videoCodecs = _engineVideoCodecs,
@@ -138,6 +139,10 @@ final class PlatformDeps {
   /// Extra GraphQL transports of Twitch (Android's system TLS, then the
   /// headless WebView).
   final List<LiveHttp> twitchFallbacks;
+
+  /// Read-only Xiaohongshu visitor bootstrap, absent in background isolates
+  /// and shells without a WebView backend.
+  final XiaohongshuGuest? xiaohongshuGuest;
 
   /// The transport of Kick's API: HTTP/2 (`Http2LiveHttp`), since kick.com
   /// refuses every HTTP/1.1 client from 2026-10 (S02.4; Android's system TLS
@@ -194,7 +199,7 @@ SiteRegistry buildSiteRegistry(PlatformDeps deps) {
     SiteIds.missevan: () => MissevanSite(http),
     SiteIds.inke: () => InkeSite(http, preferH264: preferH264),
     SiteIds.kilakila: () => KilakilaSite(http),
-    SiteIds.xiaohongshu: () => XiaohongshuSite(http),
+    SiteIds.xiaohongshu: () => XiaohongshuSite(http, guest: deps.xiaohongshuGuest),
     SiteIds.niconico: () => NiconicoSite(http, proxy: deps.proxy),
     SiteIds.weibo: () => WeiboSite(http),
     SiteIds.showroom: () => ShowroomSite(http),
@@ -231,9 +236,10 @@ Fc2LiveSite fc2LiveSite(LiveHttp http, {required ProxyPolicy proxy}) {
 /// The danmaku connections (M5 "登记方式" of every platform).
 ///
 /// Not registered, so the room shows 3.x's "not connected" notice once:
-/// CC (anonymous joins get no answer, UPGRADES C-22), Inke, Xiaohongshu,
+/// CC (anonymous joins get no answer, UPGRADES C-22), Inke,
 /// Weibo (no chat in 3.x or M5), LiveMe and TikTok (blocked: login and
-/// signing, M5.17/M5.18), IPTV.
+/// signing, M5.17/M5.18), IPTV. Xiaohongshu is registered only when the
+/// shell supplies its read-only visitor bootstrap.
 DanmakuRegistry buildDanmakuRegistry(PlatformDeps deps, SiteRegistry sites) {
   final http = deps.http;
   final proxy = deps.proxy;
@@ -243,12 +249,11 @@ DanmakuRegistry buildDanmakuRegistry(PlatformDeps deps, SiteRegistry sites) {
   SocketConnector? connector(String site) => genericDanmakuHandshakeSites.contains(site) ? generic : null;
   return DanmakuRegistry({
     SiteIds.bilibili: () => BilibiliDanmakuConnection(proxy: proxy, connector: connector(SiteIds.bilibili)),
-    SiteIds.douyu: () => DouyuDanmakuConnection(
-      proxy: proxy,
-      connector: connector(SiteIds.douyu),
-      filterSuspectedAutomatedMessages: () => settings.get(Settings.filterDouyuSuspectedAutomatedMessages),
-    ),
+    SiteIds.douyu: () => DouyuDanmakuConnection(proxy: proxy, connector: connector(SiteIds.douyu)),
     SiteIds.huya: () => HuyaDanmakuConnection(proxy: proxy, connector: connector(SiteIds.huya)),
+    if (deps.xiaohongshuGuest case final guest?)
+      SiteIds.xiaohongshu: () =>
+          XiaohongshuDanmakuConnection(guest: guest, proxy: proxy, connector: connector(SiteIds.xiaohongshu)),
     // The room's DouyinDanmakuArgs carry `refresh` (B-5), set by DouyinSite.
     SiteIds.douyin: () => DouyinDanmakuConnection(http: http, proxy: proxy, connector: connector(SiteIds.douyin)),
     SiteIds.kuaishou: () => KuaishouDanmakuConnection(http: http),
@@ -256,6 +261,7 @@ DanmakuRegistry buildDanmakuRegistry(PlatformDeps deps, SiteRegistry sites) {
     // B-6: SOOP's chat follows the app proxy (CONNECT tunnel). Its own
     // case-preserving handshake: its edge does not answer dart:io's
     // lower-case headers (Q03.1), so never the generic connector.
+    SiteIds.cc: () => CcDanmakuConnection(proxy: proxy, connector: generic),
     SiteIds.soop: () => SoopDanmakuConnection(proxy: proxy),
     SiteIds.yy: YyDanmakuConnection.new,
     SiteIds.acfun: () => AcfunDanmakuConnection(proxy: proxy, connector: connector(SiteIds.acfun)),
@@ -299,6 +305,7 @@ const bool plainDanmakuUserAgent = bool.fromEnvironment('PURE_LIVE_PLAIN_WS_UA')
 /// handshake, `exact_websocket.dart`), FC2 (its own socket), and Kuaishou,
 /// niconico, YouTube, Steam and Baidu (no WebSocket of ours to shake).
 const Set<String> genericDanmakuHandshakeSites = {
+  SiteIds.cc,
   SiteIds.bilibili,
   SiteIds.douyu,
   SiteIds.huya,

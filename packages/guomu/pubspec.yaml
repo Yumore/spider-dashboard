@@ -1,7 +1,7 @@
 name: guomu
 description: 果幕 - 黄果短剧第三方 Flutter 客户端。
 publish_to: 'none'
-version: 1.4.3+8
+version: 1.4.6+11
 
 environment:
   sdk: ^3.9.0

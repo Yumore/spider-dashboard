@@ -68,6 +68,17 @@ ThemeData buildHgTheme(Brightness brightness, {bool embedded = false}) {
     highlightColor: Colors.transparent,
     splashColor: Colors.transparent,
     splashFactory: NoSplash.splashFactory,
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) {
+            return onSurface.withValues(alpha: 0.08);
+          }
+          return null;
+        }),
+        splashFactory: NoSplash.splashFactory,
+      ),
+    ),
     textTheme: textTheme.copyWith(
       displaySmall: textTheme.displaySmall?.copyWith(
         fontWeight: FontWeight.w800,
@@ -168,11 +179,6 @@ ThemeData buildHgTheme(Brightness brightness, {bool embedded = false}) {
             overlayColor: const WidgetStatePropertyAll(Colors.transparent),
           ),
     ),
-    iconButtonTheme: IconButtonThemeData(
-      style: ButtonStyle(
-        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-      ),
-    ),
     chipTheme: ChipThemeData(
       backgroundColor: dark ? const Color(0xFF202127) : const Color(0xFFF3F3F4),
       side: BorderSide.none,
@@ -209,6 +215,8 @@ ThemeData buildHgTheme(Brightness brightness, {bool embedded = false}) {
       backgroundColor: dark ? const Color(0xFF181818) : Colors.white,
       modalBackgroundColor: dark ? const Color(0xFF181818) : Colors.white,
       surfaceTintColor: Colors.transparent,
+      dragHandleColor: dark ? const Color(0xFF5A5A5E) : const Color(0xFFD2D2D7),
+      dragHandleSize: const Size(38, 4),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -241,9 +249,7 @@ ThemeData buildHgTheme(Brightness brightness, {bool embedded = false}) {
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        // Flutter 的 predictive back 在 Android 上会叠加半透明旧页面，
-        // 对沉浸式短剧客户端显得像网页转场，统一使用整页推入。
-        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),

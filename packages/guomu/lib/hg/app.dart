@@ -65,7 +65,17 @@ class _HgScrollBehavior extends MaterialScrollBehavior {
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    return const ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+    switch (getPlatform(context)) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        );
+      default:
+        return const ClampingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        );
+    }
   }
 
   @override
@@ -74,7 +84,13 @@ class _HgScrollBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    return child;
+    switch (getPlatform(context)) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return child;
+      default:
+        return super.buildOverscrollIndicator(context, child, details);
+    }
   }
 }
 
@@ -103,7 +119,6 @@ class _GuomuMaterialApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       builder: (context, child) {
-        final media = MediaQuery.of(context);
         final dark = Theme.of(context).brightness == Brightness.dark;
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
@@ -111,15 +126,7 @@ class _GuomuMaterialApp extends StatelessWidget {
                 statusBarColor: Colors.transparent,
                 systemNavigationBarColor: Colors.transparent,
               ),
-          child: MediaQuery(
-            data: media.copyWith(
-              textScaler: media.textScaler.clamp(
-                minScaleFactor: 0.9,
-                maxScaleFactor: 1.3,
-              ),
-            ),
-            child: child ?? const SizedBox.shrink(),
-          ),
+          child: child ?? const SizedBox.shrink(),
         );
       },
       home: RootShell(key: ValueKey(source.baseUrl), onClose: onClose),

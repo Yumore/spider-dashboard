@@ -14,7 +14,9 @@ Future<void> showHgUpdateResultSheet(
 }) {
   return showHgAdaptiveSheetBuilder<void>(
     context,
+    childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.4),
+    initialSize: 0.62,
     builder: (_) => _HgUpdateSheet(result: result, automatic: automatic),
   );
 }
@@ -73,9 +75,7 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
     final hasUpdate = widget.result.hasUpdate;
     final release = widget.result.release;
     final body = HgUpdateService.plainReleaseBody(release.body);
-    final maxHeight = MediaQuery.sizeOf(context).height * 0.82;
     return Container(
-      constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: BoxDecoration(
         color: context.hgSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -85,15 +85,6 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 9),
-            Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.hgLine,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 14, 12),
               child: Row(
@@ -103,14 +94,14 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: hasUpdate ? HgColors.ink : const Color(0xFFF1EFEB),
+                      color: hasUpdate ? HgColors.ink : context.hgSurfaceMuted,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
                       hasUpdate
                           ? Icons.system_update_alt_rounded
                           : Icons.check_rounded,
-                      color: hasUpdate ? Colors.white : HgColors.ink,
+                      color: hasUpdate ? Colors.white : context.hgOnSurface,
                       size: 23,
                     ),
                   ),
@@ -186,12 +177,12 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                 ),
               ),
               if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: Text(
                     'iOS 安装包未签名，下载后需要使用 Sideloadly、AltStore 或自己的证书完成签名安装。',
                     style: TextStyle(
-                      color: Color(0xFF8A8A8F),
+                      color: context.hgMuted,
                       fontSize: 10.5,
                       height: 1.5,
                     ),
@@ -202,8 +193,8 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                   child: Text(
                     _error!,
-                    style: const TextStyle(
-                      color: Color(0xFFC64F45),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
                       fontSize: 11,
                     ),
                   ),
@@ -227,12 +218,12 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                 ),
               ),
             ] else
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 6, 20, 24),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
                 child: Text(
                   '果幕会通过 GitHub Releases 检查后续版本，有新版本时会在设置页提示。',
                   style: TextStyle(
-                    color: Color(0xFF85858A),
+                    color: context.hgMuted,
                     fontSize: 12,
                     height: 1.6,
                   ),

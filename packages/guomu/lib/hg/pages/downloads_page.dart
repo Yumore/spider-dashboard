@@ -5,9 +5,11 @@ import '../models/hg_download_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_download_manager.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/hg_components.dart';
 import '../widgets/secure_cover.dart';
 import 'short_video_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class DownloadsPage extends StatelessWidget {
   const DownloadsPage({super.key});
@@ -32,24 +34,15 @@ class DownloadsPage extends StatelessWidget {
           if (tasks.isNotEmpty)
             TextButton(
               onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('清除全部缓存？'),
-                    content: const Text('会删除已下载的所有短剧文件，不影响账号和历史。'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('取消'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('清除'),
-                      ),
-                    ],
-                  ),
+                final ok = await showHgConfirmSheet(
+                  context,
+                  title: '清除全部缓存？',
+                  message: '会删除已下载的所有短剧文件，不影响账号和历史。',
+                  confirmLabel: '清除全部',
+                  destructive: true,
+                  icon: Icons.delete_outline_rounded,
                 );
-                if (ok == true) await manager.clear();
+                if (ok) await manager.clear();
               },
               child: const Text('清空'),
             ),
@@ -114,7 +107,7 @@ class _DownloadTile extends StatelessWidget {
       color: context.hgSurface,
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onOpen,
         child: Padding(
           padding: const EdgeInsets.all(12),

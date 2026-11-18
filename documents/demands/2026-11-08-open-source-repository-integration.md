@@ -1,6 +1,6 @@
-# 开源内容工程能力集成记录（更新至 2026-11-17）
+# 开源内容工程能力集成记录（更新至 2026-11-18）
 
-更新日期：2026-11-17（初次记录：2026-11-08）
+更新日期：2026-11-18（初次记录：2026-11-08）
 
 ## 2026-11-17 DearLicy/guomu 果幕客户端完整集成
 
@@ -11,6 +11,16 @@
 - 平台运行链：Android 合并 Guomu 分享和深链 MethodChannel、冷启动入口、通知图标、后台任务及所需权限；iOS 合并 Workmanager/通知/分享/URL 桥接，并将上游 WidgetKit Live Activity 加入 Runner 工程，使用 App Group `group.com.nsapp.dashboard.guomu`；Web 保留 Dashboard Flutter 启动器，并加入 HLS.js、`window.guomuMediaCache` 和媒体 Service Worker。Flutter 旧版 loader 不再二次注册或注销该媒体 Worker，避免它覆盖 Guomu 的媒体缓存处理。
 - 本地适配：包内 source manifest 改为 package 资源路径；嵌入运行时使用 `packages/guomu/` 字体族；短剧外壳添加返回 Dashboard 操作并避免重复深链入口；Live Activity 使用宿主 App Group；PointyCastle 调整到 `^3.9.1`，因为果幕封面解密使用的 AES-CBC API 在该版本可用，同时满足现有 `crypton` 约束。此固定依赖图由 `flutter pub get` 解析。iOS 原生媒体会话会在退出果幕时恢复。
 - 完成范围：完整客户端代码和平台构件已迁入并接入导航/宿主清单；HGhub API 和登录服务、上游 Release、各视频源与实际播放取决于外部服务。此轮未运行测试、构建或设备 UI 验收；iOS Live Activities 实际启用还依赖发布签名配置允许该 App Group。
+
+## 2026-11-18 已集成上游逻辑刷新
+
+- DearLicy/guomu：从 `b2d61210d22a07fb021a9bfb510b2781cda665cd` 更新到 `3b00a52d712b82e674cbad405aa537370bf01bab`，包版本 `1.4.6+11`。合并播放器按压/手势、设置与自适应半屏更新；宿主 iOS 补入锁屏 Now Playing 元数据、远程播放/暂停/跳转控制，保留页面级音频会话恢复。
+- wzgrx/PureLive：从 `9bd38aaf10e5bd7c8db24c27af82f433507c1917` 更新到 `9b406e8ecc46642233176ece200ec9aef5921cf0`，包版本 `5.6.0+5133` → `5.6.5+5144`。包含直播/弹幕/回看、归档播放器、字体和播放控制改进，以及小红书访客浏览；因集成包无独立 Android 工程，将 `pure_live/xiaohongshu_guest` WebView 多配置实现移入 Dashboard Activity 并添加 AndroidX WebKit `1.14.0`。保留既有 MPV 诊断适配。
+- xiaojiulala/dart_simple_live：活动代码基线从 `da2a0fdc9d9ca376bd3365e80a4589699a7b93b4` 更新到默认分支 `tv-1.7.6-fix` 的 `a18aef6d0f5698e56b52709482ccba79ad32a9e5`。将 3 个提交合入活动 Core/TV 代码，修复 WebSocket 重连定时器和关闭竞态、虎牙非 VIP 4K 档位过滤及 Android TV 切后台后的弹幕重新连接；`packages/simple_live/upstream/` 是 xiaoyaocz 的单独历史快照，保持不变。
+- ch6vip/novel-sound：从 `c9ffddbbf3c976ccc5735fc7daaf4d6f4426efa8` 更新到 `18161a89d5436c3004c453d2428cfd110c527b4`，包版本 `1.0.204+209` → `1.0.205+210`。同步多设备同步、UGC 故事流、阅读/播放器/缓存改进及短剧 V5 签名与重试逻辑；原有 WebDAV 被统一同步服务接管时保留旧配置迁移。Android 宿主新增上游云盘登录、同步存储和云存储插件及所需 Activity/包可见性/依赖；完整同步依赖许可证和 upstream license registry 已补齐。
+- superxyline/purelive：从 `49de6d04bb90d1df1b1015ac342c7104a768062f` 更新到 `acde546b1bd52ee8a3824268fbc8c4f6ee584cb`，只更新 `nas/server/src/sites/douyin.ts` 的分块 JSON 响应解析；未引入上游提交中的 `node_modules` 或构建产物。
+- 其他已迁入来源核对：Kazumi-WebDAV、Hongguo、Zhenguo、Cuipi TV、Wenku8、PicaComic 与 Windows WebView 的上游对比基线当前无新提交。VioClass 在集成提交后多 4 个提交，但差异在其 Twitch 实时直播/DVR 发现与恢复；宿主仅迁入的公开 VOD/Clip 子集未对应变更，故未移植其未集成模块。
+- 本轮未运行测试、Dart 分析、Gradle 编译、APK/桌面打包或设备验证；只做上游版本/路径核对、静态变更审查和格式/结构检查。各历史集成验证结果仍保留在下文原记录，不代表本轮重新验证。
 
 ## 范围与决策
 

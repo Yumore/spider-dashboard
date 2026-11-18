@@ -10,7 +10,7 @@ abstract final class HgPlayerDisplay {
   }
 
   static Future<void> reset() async {
-    await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 }
