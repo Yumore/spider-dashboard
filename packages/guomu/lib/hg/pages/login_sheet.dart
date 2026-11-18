@@ -72,13 +72,9 @@ class _LoginSheetState extends State<LoginSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    final height = MediaQuery.sizeOf(context).height;
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
+    return Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
-        constraints: BoxConstraints(maxHeight: height * 0.78),
         decoration: BoxDecoration(
           color: context.hgSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -92,16 +88,6 @@ class _LoginSheetState extends State<LoginSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.hgLine,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -272,13 +258,13 @@ class _LoginSheetState extends State<LoginSheet> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF1EE),
+                        color: Theme.of(context).colorScheme.errorContainer,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         _error!,
-                        style: const TextStyle(
-                          color: Color(0xFFB8442C),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                           fontSize: 12,
                         ),
                       ),
@@ -298,7 +284,9 @@ class _LoginSheetState extends State<LoginSheet> {
                             Theme.of(context).brightness == Brightness.dark
                             ? context.hgSurface
                             : Colors.white,
-                        disabledBackgroundColor: const Color(0xFFB9B9BD),
+                        disabledBackgroundColor: context.hgMuted.withValues(
+                          alpha: 0.38,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(13),
                         ),

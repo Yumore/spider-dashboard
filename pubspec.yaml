@@ -134,6 +134,9 @@ flutter:
         - assets/licenses/wenku8/LICENSE
         - assets/licenses/wenku8/GPL-3.0.txt
         - assets/licenses/wenku8/PORTING.md
+        - assets/licenses/sync_storage.txt
+        - assets/licenses/desugar_jdk_libs-GPL-2.0-with-Classpath-Exception.txt
+        - assets/licenses/javax.el-CDDL-1.1-or-GPL-2.0-with-Classpath-Exception.txt
         - assets/video_enhancement/
         - assets/billd_live/tabbar/
         - assets/dodu/

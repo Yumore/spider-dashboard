@@ -26,7 +26,8 @@ abstract final class HgLiveActivityService {
     try {
       await _plugin.init(appGroupId: _configuredAppGroupId, urlScheme: 'guomu');
       _initialized = true;
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Guomu live activity init skipped: $error');
       // 未签名开发包或设备不支持时不影响播放器。
     }
   }
@@ -47,12 +48,17 @@ abstract final class HgLiveActivityService {
     try {
       final supported = await _plugin.areActivitiesSupported();
       if (!supported) return;
+      final enabled = await _plugin.areActivitiesEnabled();
+      if (!enabled) return;
       final data = <String, dynamic>{
         'videoId': videoId,
         'title': title,
         'cover': cover.isEmpty
             ? null
-            : LiveActivityFileFromUrl.image(cover, imageOptions: null),
+            : LiveActivityFileFromUrl.image(
+                cover,
+                imageOptions: LiveActivityImageFileOptions(resizeFactor: 0.16),
+              ),
         'genre': tags.isEmpty ? '黄果短剧' : tags.take(2).join(' · '),
         'episode': episode,
         'totalEpisodes': totalEpisodes,
@@ -61,12 +67,25 @@ abstract final class HgLiveActivityService {
         'progress': progress.clamp(0.0, 1.0),
         'deepLink': deepLink,
       };
-      await _plugin.createOrUpdateActivity(
-        _activityId,
-        data,
-        staleIn: const Duration(hours: 3),
-      );
-    } catch (_) {
+      try {
+        await _plugin.createOrUpdateActivity(
+          _activityId,
+          data,
+          staleIn: const Duration(hours: 3),
+          removeWhenAppIsKilled: false,
+        );
+      } catch (error) {
+        debugPrint('Guomu live activity cover skipped: $error');
+        data['cover'] = null;
+        await _plugin.createOrUpdateActivity(
+          _activityId,
+          data,
+          staleIn: const Duration(hours: 3),
+          removeWhenAppIsKilled: false,
+        );
+      }
+    } catch (error) {
+      debugPrint('Guomu live activity update skipped: $error');
       // 实时活动是增强能力，失败不阻断播放器。
     }
   }

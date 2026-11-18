@@ -12,6 +12,7 @@ import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/hg_components.dart';
 import '../widgets/secure_cover.dart';
 import 'login_sheet.dart';
+import '../widgets/hg_pressable.dart';
 
 Future<void> showCommentsSheet(
   BuildContext context, {
@@ -210,35 +211,21 @@ class _CommentsSheetState extends State<CommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final size = MediaQuery.sizeOf(context);
     final inset = MediaQuery.viewInsetsOf(context).bottom;
-    final sheetHeight = size.height * 0.84 - math.min(inset * 0.72, 220);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      height: sheetHeight,
-      decoration: BoxDecoration(
-        color: context.hgSurface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          const SizedBox(height: 9),
-          Container(
-            width: 38,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE5E5E7),
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-          SizedBox(
-            height: 54,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Text(
+    return Padding(
+      padding: EdgeInsets.only(bottom: inset),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.hgSurface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 54,
+              child: Center(
+                child: Text(
                   '${_total > 0 ? formatCount(_total) : ''}条评论',
                   style: TextStyle(
                     color: context.hgOnSurface,
@@ -246,30 +233,19 @@ class _CommentsSheetState extends State<CommentsSheet> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                Positioned(
-                  left: 10,
-                  child: IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: context.hgOnSurface,
-                      size: 29,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          Expanded(child: _buildBody(auth)),
-          _CommentComposer(
-            controller: _input,
-            focusNode: _focus,
-            sending: _sending,
-            enabled: auth.isLoggedIn,
-            onSend: _send,
-            onLogin: () => showLoginSheet(context),
-          ),
-        ],
+            Expanded(child: _buildBody(auth)),
+            _CommentComposer(
+              controller: _input,
+              focusNode: _focus,
+              sending: _sending,
+              enabled: auth.isLoggedIn,
+              onSend: _send,
+              onLogin: () => showLoginSheet(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -364,8 +340,8 @@ class _CommentRow extends StatelessWidget {
                         comment.nickname,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF8B8B90),
+                        style: TextStyle(
+                          color: context.hgMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -386,14 +362,14 @@ class _CommentRow extends StatelessWidget {
                                 : Icons.favorite_border_rounded,
                             color: comment.isLiked
                                 ? HgColors.orange
-                                : const Color(0xFF747478),
+                                : context.hgMuted,
                             size: 22,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             formatCount(comment.likeCount),
-                            style: const TextStyle(
-                              color: Color(0xFF8C8C90),
+                            style: TextStyle(
+                              color: context.hgMuted,
                               fontSize: 10,
                             ),
                           ),
@@ -406,8 +382,8 @@ class _CommentRow extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 comment.text,
-                style: const TextStyle(
-                  color: Color(0xFF202124),
+                style: TextStyle(
+                  color: context.hgOnSurface,
                   fontSize: 15,
                   height: 1.55,
                   fontWeight: FontWeight.w400,
@@ -419,10 +395,7 @@ class _CommentRow extends StatelessWidget {
                   Expanded(
                     child: Text(
                       meta,
-                      style: const TextStyle(
-                        color: Color(0xFF9B9B9F),
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: context.hgMuted, fontSize: 11),
                     ),
                   ),
                   if (comment.replyCount > 0 && onToggleReplies != null)
@@ -440,10 +413,10 @@ class _CommentRow extends StatelessWidget {
                               ),
                             )
                           else
-                            const Text(
+                            Text(
                               '回复',
                               style: TextStyle(
-                                color: Color(0xFF6E6E73),
+                                color: context.hgMuted,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -451,8 +424,8 @@ class _CommentRow extends StatelessWidget {
                           const SizedBox(width: 3),
                           Text(
                             '${comment.replyCount}',
-                            style: const TextStyle(
-                              color: Color(0xFF9B9B9F),
+                            style: TextStyle(
+                              color: context.hgMuted,
                               fontSize: 11,
                             ),
                           ),
@@ -476,10 +449,12 @@ class _CommentRow extends StatelessWidget {
                         .map(
                           (reply) => Padding(
                             padding: const EdgeInsets.only(bottom: 6),
-                            child: RichText(
-                              text: TextSpan(
-                                style: const TextStyle(
-                                  color: Color(0xFF303034),
+                            child: Text.rich(
+                              TextSpan(
+                                style: TextStyle(
+                                  color: context.hgOnSurface.withValues(
+                                    alpha: 0.84,
+                                  ),
                                   fontSize: 12.5,
                                   height: 1.45,
                                 ),
@@ -487,9 +462,7 @@ class _CommentRow extends StatelessWidget {
                                   if (reply.replyToNickname.isNotEmpty)
                                     TextSpan(
                                       text: '回复 @${reply.replyToNickname}：',
-                                      style: const TextStyle(
-                                        color: Color(0xFF6E6E73),
-                                      ),
+                                      style: TextStyle(color: context.hgMuted),
                                     ),
                                   TextSpan(text: reply.text),
                                 ],
@@ -574,7 +547,7 @@ class _CommentComposer extends StatelessWidget {
                       : HgColors.ink)
                 : context.hgSurfaceMuted,
             borderRadius: BorderRadius.circular(10),
-            child: InkWell(
+            child: HgInkWell(
               onTap: enabled ? onSend : onLogin,
               borderRadius: BorderRadius.circular(10),
               child: SizedBox(

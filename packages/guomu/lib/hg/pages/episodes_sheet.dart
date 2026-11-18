@@ -11,6 +11,7 @@ import '../widgets/hg_components.dart';
 import '../widgets/secure_cover.dart';
 import 'login_sheet.dart';
 import 'tag_feed_page.dart';
+import '../widgets/hg_pressable.dart';
 
 Future<int?> showEpisodesSheet(
   BuildContext context, {
@@ -86,7 +87,6 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
   Widget build(BuildContext context) {
     final episodes = _episodes;
     final total = episodes.length;
-    final height = MediaQuery.sizeOf(context).height;
     final width = MediaQuery.sizeOf(context).width;
     final auth = context.watch<AuthController>();
     final favorite = auth.isFavorite(widget.detail.id);
@@ -95,7 +95,6 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
     final pageItems = episodes.sublist(start, end);
 
     return Container(
-      height: height * 0.76,
       decoration: BoxDecoration(
         color: context.hgSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
@@ -103,15 +102,6 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          const SizedBox(height: 9),
-          Container(
-            width: 38,
-            height: 4,
-            decoration: BoxDecoration(
-              color: context.hgLine,
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
             child: Row(
@@ -148,8 +138,8 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
                       const SizedBox(height: 7),
                       Text(
                         '第 ${widget.currentEpisode} 集 · 全 $total 集',
-                        style: const TextStyle(
-                          color: Color(0xFF8B8B91),
+                        style: TextStyle(
+                          color: context.hgMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -252,7 +242,11 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
                 onPressed: _saving ? null : _toggleFavorite,
                 style: FilledButton.styleFrom(
                   backgroundColor: favorite
-                      ? const Color(0xFFFFF2EA)
+                      ? HgColors.orange.withValues(
+                          alpha: Theme.of(context).brightness == Brightness.dark
+                              ? 0.2
+                              : 0.09,
+                        )
                       : HgColors.orange,
                   foregroundColor: favorite ? HgColors.orange : Colors.white,
                   disabledBackgroundColor: HgColors.orange.withValues(
@@ -386,7 +380,7 @@ class _EpisodeCell extends StatelessWidget {
           : context.hgSurfaceMuted,
       borderRadius: BorderRadius.circular(9),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: Center(
           child: Text(

@@ -11,6 +11,7 @@ import '../widgets/hg_components.dart';
 import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'short_video_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class RankPage extends StatefulWidget {
   const RankPage({super.key, this.showBack = false});
@@ -312,7 +313,7 @@ class _RankHero extends StatelessWidget {
       color: HgColors.ink,
       borderRadius: BorderRadius.circular(26),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: SizedBox(
           height: 224,
@@ -450,7 +451,7 @@ class _RankRow extends StatelessWidget {
       color: context.hgSurface,
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: SizedBox(
           height: 102,

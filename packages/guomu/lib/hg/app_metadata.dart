@@ -1,17 +1,76 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.3';
-  static const String buildNumber = '8';
-  static const String versionLabel = 'v1.4.3 (8)';
-  static const String releaseTitle = '启动稳定性修复版';
+  static const String version = '1.4.6';
+  static const String buildNumber = '11';
+  static const String versionLabel = 'v1.4.6 (11)';
+  static const String releaseTitle = '原生手感与主题一致性版';
   static const List<String> releaseNotes = [
-    '修复 iOS 灵动岛 Widget 因 CFBundleName 为空而无法安装的问题。',
-    'Android 改为首帧优先启动，通知和后台任务在界面显示后异步初始化。',
-    'Android 启动页改为品牌化深色启动画面，不再出现空白黑屏。',
-    '通知图标加入资源保留规则，避免 Release 压缩后初始化失败。',
-    'IPA 构建新增主 App 与 Widget 的 CFBundleName 强校验。',
+    '列表与按钮增加轻微按压叠色反馈，去掉水波纹。',
+    'Android 预测性返回与系统转场；iOS 列表回弹与 Android 边缘指示恢复合理默认值。',
+    'Tab 与操作图标切换仅淡入，去掉弹簧缩放。',
+    '骨架加载色跟随深浅主题；半屏输入随键盘即时抬升。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.6',
+      buildNumber: '11',
+      date: '2026-11-18',
+      title: '原生手感与主题一致性版',
+      features: [],
+      improvements: [
+        '全站可点区域增加轻微按压叠色，交互更接近原生客户端。',
+        'Android 使用 PredictiveBack 页面转场并启用 OnBackInvokedCallback。',
+        '按平台区分滚动物理与边缘拉伸指示，iOS 列表恢复回弹。',
+        '底部 Tab、帖子与播放页图标状态切换仅淡入，移除 easeOutBack 缩放。',
+        '骨架屏渐变取自 ColorScheme，深色模式不再显示浅色占位块。',
+        '移除全局 textScaler 上限；评论回复文本改用 Text.rich 继承缩放。',
+        '半屏表单随 viewInsets 即时 padding，不再叠加 180ms AnimatedPadding。',
+      ],
+      fixes: [],
+    ),
+    HgReleaseRecord(
+      version: 'v1.4.5',
+      buildNumber: '10',
+      date: '2026-11-16',
+      title: '播放器与 iOS 后台能力版',
+      features: [
+        'iOS 灵动岛与锁屏实时活动补齐主 App 能力声明，并在播放开始时立即创建。',
+        'iOS 接入系统 Now Playing 锁屏媒体信息和播放控制。',
+        '启动时自动请求通知权限，后台音频与后台 App 刷新能力同步启用。',
+        'iPhone 播放器支持左右横屏，退出播放器后自动恢复竖屏。',
+      ],
+      improvements: [
+        '视频进度条改用 Flutter 原生 Slider，触控区域扩大并支持连续跟手拖动。',
+        '进度条整体上移并放到选集栏上方，避免贴近系统手势区导致难以滑动。',
+        '横屏视频竖屏显示时使用纯黑背景，不再以封面图填充画面。',
+        '全屏观看按钮移动到画面上方，并扩大按钮点击区域。',
+      ],
+      fixes: [
+        '修复评论区下箭头与半屏拖动条重合的问题。',
+        '修复松手后等待视频 seek 完成才更新界面造成的卡顿感。',
+        '修复 Live Activity 封面过大可能导致活动创建失败的问题。',
+      ],
+    ),
+    HgReleaseRecord(
+      version: 'v1.4.4',
+      buildNumber: '9',
+      date: '2026-11-16',
+      title: '原生面板与全局打磨版',
+      features: [
+        '半屏面板统一复用 Flutter 原生模态底部面板、系统拖动条和中大档吸附。',
+        '新增统一确认面板，清空缓存、退出登录等操作不再使用居中系统弹窗。',
+        '数据源、更新说明、消息详情和设置选择等长内容统一使用面板滚动控制器。',
+      ],
+      improvements: [
+        '登录、编辑资料、评论、选集、分享和更新说明的面板高度改由容器统一控制。',
+        '面板内文字、按钮和错误提示改为跟随浅色与深色主题。',
+        '评论输入、数据源地址输入和帖子评论适配键盘与底部安全区。',
+      ],
+      fixes: [
+        '修复半屏顶部横条无法可靠拖动、内外层滚动冲突和高度跳动的问题。',
+        '修复我的页面消息角标和快捷入口角标背景透明、部分环境不可见的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.3',
       buildNumber: '8',

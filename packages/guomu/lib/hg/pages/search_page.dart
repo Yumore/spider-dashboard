@@ -9,6 +9,7 @@ import '../widgets/hg_components.dart';
 import 'detail_page.dart';
 import 'tag_feed_page.dart';
 import 'tags_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -492,7 +493,7 @@ class _SuggestionSection extends StatelessWidget {
         child: Column(
           children: List.generate(words.length, (index) {
             final word = words[index];
-            return InkWell(
+            return HgInkWell(
               onTap: () => onTap(word),
               borderRadius: BorderRadius.vertical(
                 top: index == 0 ? const Radius.circular(13) : Radius.zero,

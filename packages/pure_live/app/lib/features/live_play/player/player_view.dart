@@ -32,12 +32,14 @@ import 'package:pure_live/features/live_play/player/player_status.dart';
 import 'package:pure_live/features/live_play/player/portrait_diagnostics.dart';
 import 'package:pure_live/features/live_play/player/recording_badge.dart';
 import 'package:pure_live/features/live_play/player/room_swipe.dart';
+import 'package:pure_live/features/live_play/replay/room_replay_controls.dart';
 import 'package:pure_live/i18n/i18n.dart';
 import 'package:pure_live/platform/display_mode.dart';
 import 'package:pure_live/shared/danmaku/danmaku_overlay.dart';
 import 'package:pure_live/shared/danmaku/danmaku_settings.dart';
 import 'package:pure_live/shared/danmaku/danmaku_templates.dart';
 import 'package:pure_live/shared/danmaku/emotes.dart';
+import 'package:pure_live/shared/danmaku/portrait_chat_overlay.dart';
 import 'package:pure_live/shared/rooms/playback_hud.dart';
 
 export 'package:pure_live/features/live_play/dialogs/player_dialogs.dart' show videoFits;
@@ -211,6 +213,7 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
 
   /// The flying danmaku, asked what a tap hits (F.2b).
   final GlobalKey<DanmakuOverlayState> _flying = GlobalKey(debugLabel: 'room-danmaku');
+  final GlobalKey<PortraitChatOverlayState> _stacked = GlobalKey(debugLabel: 'portrait-chat');
 
   /// A flying danmaku's actions are open: the danmaku stand (U.2h c9).
   bool _danmakuHeld = false;
@@ -560,6 +563,7 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
     _pinPointer = null;
     _pinFrom = null;
     _flying.currentState?.unpin();
+    _stacked.currentState?.unpin();
   }
 
   bool _canSecondaryAt(Offset global) {
@@ -611,12 +615,15 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
     widget.onWindowFullscreen?.call();
   }
 
-  /// The flying layer and [global] in its coordinates where a tap may hit a
+  /// The active layer for a global point where a tap may hit a
   /// danmaku: not on the bars while the controls show, not while locked.
-  (DanmakuOverlayState, Offset)? _flyingPoint(Offset global) {
+  DanmakuHitTarget? get _danmakuHitTarget => _stacked.currentState ?? _flying.currentState;
+
+  (DanmakuHitTarget, Offset)? _flyingPoint(Offset global) {
     if (_locked) return null;
-    final flying = _flying.currentState;
-    final box = flying?.context.findRenderObject();
+    final flying = _danmakuHitTarget;
+    final targetContext = _stacked.currentContext ?? _flying.currentContext;
+    final box = targetContext?.findRenderObject();
     if (flying == null || box is! RenderBox || !box.hasSize) return null;
     final local = box.globalToLocal(global);
     final (top, bottom) = _bars();
@@ -675,6 +682,7 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
     required _FpsSettings fps,
     required String pausedBehavior,
     required int maxVisible,
+    bool stacked = false,
   }) => ClipRect(
     child: RepaintBoundary(
       child: ValueListenableBuilder<DisplayModeInfo?>(
@@ -690,23 +698,40 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
           return StreamBuilder<PlaybackState>(
             stream: _room.session.states,
             initialData: _room.session.state,
-            builder: (context, snapshot) => DanmakuOverlay(
-              key: _flying,
-              messages: _room.flying,
-              retractions: _room.retractions,
-              look: look,
-              visible: visible,
-              // D05.2: "同屏最大弹幕条数" (3.x's 48 by default).
-              maxVisible: maxVisible,
-              fps: rate.fps,
-              refreshRate: rate.refreshRate,
-              // B02 c3: paused, as "暂停时的弹幕" says.
-              running: danmakuRunning((snapshot.data ?? _room.session.state).status, pausedBehavior),
-              held: _danmakuHeld,
-              emotes: _emotes,
-              // A08.12: gifts fly clear of the bars (fullscreen, landscape).
-              giftClearance: _giftClearance(),
-            ),
+            builder: (context, snapshot) {
+              final running = danmakuRunning((snapshot.data ?? _room.session.state).status, pausedBehavior);
+              if (stacked) {
+                return PortraitChatOverlay(
+                  key: _stacked,
+                  messages: _room.flying,
+                  retractions: _room.retractions,
+                  look: look,
+                  visible: visible,
+                  running: running,
+                  held: _danmakuHeld,
+                  maxVisible: maxVisible,
+                  clearance: _giftClearance(),
+                  emotes: _emotes,
+                );
+              }
+              return DanmakuOverlay(
+                key: _flying,
+                messages: _room.flying,
+                retractions: _room.retractions,
+                look: look,
+                visible: visible,
+                // D05.2: "同屏最大弹幕条数" (3.x's 48 by default).
+                maxVisible: maxVisible,
+                fps: rate.fps,
+                refreshRate: rate.refreshRate,
+                // B02 c3: paused, as "暂停时的弹幕" says.
+                running: danmakuRunning((snapshot.data ?? _room.session.state).status, pausedBehavior),
+                held: _danmakuHeld,
+                emotes: _emotes,
+                // A08.12: gifts fly clear of the bars (fullscreen, landscape).
+                giftClearance: _giftClearance(),
+              );
+            },
           );
         },
       ),
@@ -775,6 +800,7 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
     final display = watchSetting(ref, Settings.enableDanmakuDisplay);
     final showDanmaku = display && !hidden && (!pip || watchSetting(ref, Settings.enablePipDanmaku));
     final portraitDanmaku = watchSetting(ref, Settings.portraitDanmakuMode);
+    final portraitChatLayout = watchSetting(ref, Settings.portraitFullscreenDanmakuLayout);
     final look = danmakuLookOf(ref);
     final fps = (
       automatic: watchSetting(ref, Settings.danmakuAutoFps),
@@ -949,6 +975,7 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
                           fps: fps,
                           pausedBehavior: pausedBehavior,
                           maxVisible: maxVisible,
+                          stacked: portraitRows && portraitChatLayout == 'stacked',
                         ),
                       ],
                     ),
@@ -959,7 +986,16 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
             ],
           ),
         ),
-        if (!pip) PlaybackHud(telemetry: _room.telemetry, controls: _controls && !_locked, clearance: _giftClearance()),
+        if (!pip)
+          PlaybackHud(
+            telemetry: _room.telemetry,
+            controls: _controls && !_locked,
+            clearance: _giftClearance(),
+            fullscreen: !_inline,
+            phone: widget.platform.mobile,
+            compactHeader: arrangement == ControlsArrangement.landscape && !_inline,
+            compactLeading: const PlayerBattery(),
+          ),
         // U.2k c9: the local gift banner, on its own layer in the middle of
         // the picture, clear of the bars (D08.4).
         if (LocalRoomScope.maybeOf(context) case final local?)
@@ -971,7 +1007,7 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
           child: CatchupBadge(controller: _room, onOpenGuide: widget.onOpenGuide),
         ),
         // F.1d: "显示识别状态" (3.x: 12 from the left, 62 from the top).
-        if (!_inline && !pip && !_locked)
+        if (!_inline && !pip && !_locked && _controls)
           Positioned(
             right: 12 + padding.right,
             top: badgeTop,
@@ -1037,9 +1073,24 @@ class _RoomPlayerState extends ConsumerState<RoomPlayer> {
                             left: 0,
                             top: 0,
                             right: 0,
-                            child: PlayerTopBar(actions: controls ? actions : actions.reducedCopy()),
+                            child: PlayerTopBar(
+                              actions: controls ? actions : actions.reducedCopy(),
+                              showStatus: _controls && !_locked,
+                            ),
                           ),
                         if (!_locked && controls) Positioned(left: 0, right: 0, bottom: 0, child: bottomBar),
+                        if (!_locked && controls && _room.isArchive)
+                          Positioned(
+                            left: padding.left,
+                            right: padding.right,
+                            bottom: padding.bottom + (portraitRows ? portraitRowHeight * 2 + 12 : controlBarHeight),
+                            child: RoomReplayTransport(
+                              controller: _room,
+                              immersive: arrangement != ControlsArrangement.inline || widget.pickersInBar,
+                              onInteract: _touch,
+                              onHolding: _onMenu,
+                            ),
+                          ),
                         if (!_locked && widget.edge != null)
                           Positioned(right: 0, top: 0, bottom: 0, child: Center(child: widget.edge)),
                         // B-4: while locked the unlock button stays whatever

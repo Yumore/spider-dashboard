@@ -21,6 +21,10 @@ import com.yumore.dashboard.novelsound.platform.RendererCompatibility
 import com.yumore.dashboard.novelsound.platform.SecureKeyPlugin
 import com.yumore.dashboard.novelsound.platform.SharePlugin
 import com.yumore.dashboard.novelsound.platform.SystemTtsPlugin
+import com.yumore.dashboard.novelsound.platform.cloudsync.CloudLoginPlugin
+import com.yumore.dashboard.novelsound.platform.cloudsync.CloudStoragePlugin
+import com.yumore.dashboard.novelsound.platform.cloudsync.SyncStoragePlugin
+import com.yumore.dashboard.live.platform.XiaohongshuGuestChannel
 import com.yumore.dashboard.shortdrama.platform.bridge.ShortDramaPlatformChannelRouter
 import com.yumore.dashboard.shortdrama.platform.device.ShortDramaDisplayController
 import com.yumore.dashboard.shortdrama.platform.device.ShortDramaPictureInPictureController
@@ -42,6 +46,8 @@ class DashboardActivity : FlutterActivity() {
     private var hapticsChannel: MethodChannel? = null
     private var guomuDeepLinkChannel: MethodChannel? = null
     private var guomuEntryChannel: MethodChannel? = null
+    private var xiaohongshuGuestMethodChannel: MethodChannel? = null
+    private var xiaohongshuGuestHandler: XiaohongshuGuestChannel? = null
     private var pendingGuomuDeepLink: String? = null
     internal var isResumed = false
 
@@ -97,12 +103,24 @@ class DashboardActivity : FlutterActivity() {
         flutterEngine.plugins.add(SecureKeyPlugin())
         flutterEngine.plugins.add(LocalBookPickerPlugin())
         flutterEngine.plugins.add(LibraryBackupPlugin())
+        flutterEngine.plugins.add(SyncStoragePlugin())
+        flutterEngine.plugins.add(CloudLoginPlugin())
+        flutterEngine.plugins.add(CloudStoragePlugin())
         flutterEngine.plugins.add(FanqieAccountPlugin())
         flutterEngine.plugins.add(SharePlugin())
         flutterEngine.plugins.add(DownloadsPlugin())
         flutterEngine.plugins.add(EinkRefreshPlugin())
         flutterEngine.plugins.add(FairMemoryPlugin())
         flutterEngine.plugins.add(AiRequestPlugin())
+
+        val xiaohongshuGuestHandler = XiaohongshuGuestChannel { this }
+        this.xiaohongshuGuestHandler = xiaohongshuGuestHandler
+        xiaohongshuGuestMethodChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "pure_live/xiaohongshu_guest",
+        ).also { channel ->
+            channel.setMethodCallHandler(xiaohongshuGuestHandler::handle)
+        }
 
         hapticsChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -220,6 +238,10 @@ class DashboardActivity : FlutterActivity() {
         guomuDeepLinkChannel = null
         guomuEntryChannel?.setMethodCallHandler(null)
         guomuEntryChannel = null
+        xiaohongshuGuestMethodChannel?.setMethodCallHandler(null)
+        xiaohongshuGuestMethodChannel = null
+        xiaohongshuGuestHandler?.dispose()
+        xiaohongshuGuestHandler = null
         channelRouter?.detach()
         channelRouter = null
         super.cleanUpFlutterEngine(flutterEngine)

@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:live_core/live_core.dart';
 import 'package:live_ui/live_ui.dart';
+import 'package:pure_live/features/live_play/buttons/room_menu_button.dart';
 import 'package:pure_live/features/live_play/buttons/stream_menu.dart';
 import 'package:pure_live/features/live_play/layout/room_header.dart';
 import 'package:pure_live/features/live_play/logic/room_controller.dart';
@@ -24,13 +26,15 @@ IconData audienceIcon(AudienceMetricType type) => switch (type) {
 /// audience figures and the time on air on the second, in one line of a
 /// fixed height (A07.17 c1), with the quality and line buttons on its right
 /// ([StreamPickers]). Grey placeholders while the room loads (E2).
-class RoomInfoBar extends StatelessWidget {
+class RoomInfoBar extends ConsumerWidget {
   /// Creates the strip.
   const new({
     required this.controller,
     required this.detailsOpen,
     required this.onToggleDetails,
     this.onReopen,
+    this.showTitle = true,
+    this.showFigures = true,
     super.key,
   });
 
@@ -46,41 +50,62 @@ class RoomInfoBar extends StatelessWidget {
   /// Called before the user asks for another quality or line.
   final VoidCallback? onReopen;
 
+  /// Wide rooms keep the title beside chat and figures below the player.
+  final bool showTitle;
+
+  /// Whether this instance owns the figures and quality/line pickers.
+  final bool showFigures;
+
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 4, 8, 2),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _TitleLine(controller: controller, detailsOpen: detailsOpen, onTap: onToggleDetails),
+        if (showTitle)
+          Row(
+            children: [
+              Expanded(
+                child: _TitleLine(controller: controller, detailsOpen: detailsOpen, onTap: onToggleDetails),
+              ),
+              if ({SiteIds.huya, SiteIds.douyu, SiteIds.bilibili, SiteIds.soop}.contains(controller.room.platform))
+                TextButton.icon(
+                  key: const ValueKey('room-replay-entry'),
+                  onPressed: () => unawaited(RoomMenuButton.run(context, ref, controller, RoomMenuEntry.replayArchive)),
+                  icon: const Icon(AppIcons.vodCatalog, size: 18),
+                  label: Text(i18n('replay_load')),
+                ),
+            ],
+          ),
         // U.2g: a room that is not on air (or could not be read) keeps only
         // its title line; a restricted one keeps its figures, without the
         // quality and line it cannot play.
-        ListenableSelector<RoomStage>(
-          listenable: controller,
-          selector: () => controller.stage,
-          builder: (context, stage, _) => switch (stage) {
-            RoomStage.offline || RoomStage.failed => const SizedBox.shrink(),
-            // A07.17 c1: one line of a fixed height in every room, the
-            // figures centred on the quality and line buttons.
-            RoomStage.unplayable || RoomStage.loading || RoomStage.playing => SizedBox(
-              key: const ValueKey('live-play-audience-row'),
-              height: roomFiguresRowHeight,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: AudienceStrip(controller: controller),
+        if (showFigures)
+          ListenableSelector<RoomStage>(
+            listenable: controller,
+            selector: () => controller.stage,
+            builder: (context, stage, _) => switch (stage) {
+              RoomStage.offline || RoomStage.failed => const SizedBox.shrink(),
+              // A07.17 c1: one line of a fixed height in every room, the
+              // figures centred on the quality and line buttons.
+              RoomStage.unplayable || RoomStage.loading || RoomStage.playing => SizedBox(
+                key: const ValueKey('live-play-audience-row'),
+                height: roomFiguresRowHeight,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: AudienceStrip(controller: controller),
+                      ),
                     ),
-                  ),
-                  if (stage != RoomStage.unplayable) StreamPickers(controller: controller, onReopen: onReopen),
-                ],
+                    if (stage != RoomStage.unplayable) StreamPickers(controller: controller, onReopen: onReopen),
+                  ],
+                ),
               ),
-            ),
-          },
-        ),
+            },
+          ),
       ],
     ),
   );

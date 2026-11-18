@@ -278,9 +278,15 @@ final class MpvEngine
     _gate.beginOpen(decoderStartupWindow: mpvDecoderStartupWindow(media.uri));
     try {
       _trace('configure-open');
+      final decoder = config.hwdecFor(
+        software: media.decoder == DecoderMode.software,
+      );
+      if (config.platform == MpvPlatform.android) {
+        _trace('video-policy hwdec=$decoder vo=${config.videoOutput ?? 'default'}');
+      }
       await _setProperty(
         'hwdec',
-        config.hwdecFor(software: media.decoder == DecoderMode.software),
+        decoder,
       );
       await _setProperty('http-proxy', media.proxyUrl);
       await _setProperty(

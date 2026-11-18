@@ -6,6 +6,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import 'secure_cover.dart';
+import 'hg_pressable.dart';
 
 class HgSectionTitle extends StatelessWidget {
   const HgSectionTitle({
@@ -109,7 +110,7 @@ class HgVideoGridCard extends StatelessWidget {
           color: Colors.transparent,
           borderRadius: radius,
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
+          child: HgInkWell(
             onTap: onTap,
             child: Stack(
               fit: StackFit.expand,
@@ -251,7 +252,7 @@ class HgVideoMasonryCard extends StatelessWidget {
         label: '${video.title}，${video.episodeLabel}',
         child: Material(
           color: Colors.transparent,
-          child: InkWell(
+          child: HgInkWell(
             borderRadius: radius,
             onTap: onTap,
             child: Column(
@@ -390,7 +391,7 @@ class HgVideoRailCard extends StatelessWidget {
         label: '${video.title}，${video.episodeLabel}',
         child: Material(
           color: Colors.transparent,
-          child: InkWell(
+          child: HgInkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(15),
             child: Column(
@@ -564,7 +565,7 @@ class HgTagChip extends StatelessWidget {
           : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(99),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: Padding(
           padding: EdgeInsets.symmetric(
@@ -735,12 +736,16 @@ class _HgLoadingState extends State<HgLoading>
     super.dispose();
   }
 
-  Widget _bone({
+  Widget _bone(
+    BuildContext context, {
     required double progress,
     double? width,
     required double height,
     double radius = 16,
   }) {
+    final scheme = Theme.of(context).colorScheme;
+    final edge = scheme.surfaceContainer;
+    final peak = scheme.surfaceContainerHighest;
     final position = -2.4 + progress * 4.8;
     return RepaintBoundary(
       child: Container(
@@ -751,11 +756,7 @@ class _HgLoadingState extends State<HgLoading>
           gradient: LinearGradient(
             begin: Alignment(position, 0),
             end: Alignment(position + 1.15, 0),
-            colors: const [
-              Color(0xFFEDECE9),
-              Color(0xFFF8F7F4),
-              Color(0xFFEDECE9),
-            ],
+            colors: [edge, peak, edge],
             stops: const [0.2, 0.5, 0.8],
           ),
         ),
@@ -789,6 +790,7 @@ class _HgLoadingState extends State<HgLoading>
                       child: Row(
                         children: [
                           _bone(
+                            context,
                             progress: progress,
                             width: compact ? 76 : 92,
                             height: compact ? 98 : 112,
@@ -800,6 +802,7 @@ class _HgLoadingState extends State<HgLoading>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _bone(
+                                  context,
                                   progress: progress,
                                   width: width * (index.isEven ? 0.42 : 0.52),
                                   height: 16,
@@ -807,6 +810,7 @@ class _HgLoadingState extends State<HgLoading>
                                 ),
                                 const SizedBox(height: 10),
                                 _bone(
+                                  context,
                                   progress: progress,
                                   width: width * 0.3,
                                   height: 11,
@@ -814,6 +818,7 @@ class _HgLoadingState extends State<HgLoading>
                                 ),
                                 const SizedBox(height: 18),
                                 _bone(
+                                  context,
                                   progress: progress,
                                   width: width * 0.34,
                                   height: 10,
@@ -842,6 +847,7 @@ class _HgLoadingState extends State<HgLoading>
                   Row(
                     children: [
                       _bone(
+                        context,
                         progress: progress,
                         width: compact ? 104 : 132,
                         height: 26,
@@ -849,6 +855,7 @@ class _HgLoadingState extends State<HgLoading>
                       ),
                       const Spacer(),
                       _bone(
+                        context,
                         progress: progress,
                         width: 52,
                         height: 14,
@@ -868,6 +875,7 @@ class _HgLoadingState extends State<HgLoading>
                     ),
                     itemCount: columns == 2 ? 4 : 8,
                     itemBuilder: (context, index) => _bone(
+                      context,
                       progress: progress,
                       height: double.infinity,
                       radius: 20,

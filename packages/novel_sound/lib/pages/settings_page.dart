@@ -49,6 +49,7 @@ import 'api_service_page.dart';
 import 'cached_books_page.dart';
 import 'cached_dramas_page.dart';
 import 'library_backup_page.dart';
+import 'multi_device_sync_page.dart';
 import 'settings_category_page.dart';
 import 'system_tts_settings_page.dart';
 import 'text_replacement_page.dart';
@@ -164,8 +165,17 @@ class SettingsPage extends StatelessWidget {
       SettingsCategory(
         icon: SettingsCategoryIcons.data,
         title: '数据',
-        subtitle: '备份与恢复、缓存、阅读与播放历史',
+        subtitle: '多端同步、备份与恢复、缓存与历史',
         items: [
+          SettingsItem(
+            icon: Icons.sync,
+            title: '多端同步',
+            subtitle: '仅同步番茄收藏、阅读播放记录和已看剧集',
+            onTap: (context, _) => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MultiDeviceSyncPage()),
+            ),
+          ),
           SettingsItem(
             icon: CupertinoIcons.folder,
             title: '备份与导入',

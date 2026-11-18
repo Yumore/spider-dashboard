@@ -23,6 +23,7 @@ import 'review_prompt.dart';
 import 'rank_page.dart';
 import 'settings_page.dart';
 import '../widgets/hg_adaptive_sheet.dart';
+import '../widgets/hg_pressable.dart';
 import 'update_sheet.dart';
 
 class RootShell extends StatefulWidget {
@@ -134,7 +135,9 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     if (!mounted) return;
     await showHgAdaptiveSheetBuilder<void>(
       context,
+      childScrollable: true,
       barrierColor: Colors.black.withValues(alpha: 0.4),
+      initialSize: 0.62,
       builder: (_) => const HgReleaseNotesSheet(),
     );
     await prefs.setString(_releaseSeenKey, HgAppMetadata.versionLabel);
@@ -205,7 +208,12 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
         if (!mounted) return;
         showHgAdaptiveSheetBuilder<void>(
           context,
+          isDismissible: false,
+          enableDrag: false,
+          childScrollable: true,
           barrierColor: Colors.black.withValues(alpha: 0.42),
+          initialSize: 0.68,
+          maxSize: 0.94,
           builder: (_) => const HgSourceEditorSheet(recovery: true),
         );
       });
@@ -361,24 +369,18 @@ class _AppBottomBar extends StatelessWidget {
                     selected: selected,
                     button: true,
                     label: item.$3,
-                    child: InkWell(
+                    child: HgInkWell(
                       onTap: () => onSelected(itemIndex),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 180),
-                            switchInCurve: Curves.easeOutCubic,
+                            duration: const Duration(milliseconds: 160),
+                            switchInCurve: Curves.easeOut,
                             transitionBuilder: (child, animation) =>
-                                ScaleTransition(
-                                  scale: Tween<double>(
-                                    begin: 0.86,
-                                    end: 1,
-                                  ).animate(animation),
-                                  child: FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  ),
+                                FadeTransition(
+                                  opacity: animation,
+                                  child: child,
                                 ),
                             child: Icon(
                               selected ? item.$2 : item.$1,

@@ -1,18 +1,18 @@
 # Novel Sound integration
 
-Date: 2026-11-14
+Date: 2026-11-18 (initial integration: 2026-11-14)
 
 ## Request and source
 
 Integrate the application capabilities from [ch6vip/novel-sound](https://github.com/ch6vip/novel-sound) into Spider X as real in-repository code, preserve the current reading and shelf flows, and keep dependency and license records.
 
-- Source revision: `c9ffddbbf3c976ccc5735fc7daaf4d6f4426efa8` (`master` at integration time).
+- Current source revision: `18161a89d5436c3004c453d2428cfd110c527b4` (`master`, refreshed 2026-11-18); initial integrated revision: `c9ffddbbf3c976ccc5735fc7daaf4d6f4426efa8`.
 - License: GPL-3.0. The source `LICENSE` remains at `packages/novel_sound/LICENSE`; its notices and bundled license records remain with the migrated code/assets. The host project is AGPL-3.0. GPLv3 section 13 provides a combination path with AGPLv3; each component retains its applicable terms.
 - The package is integrated from local source at `packages/novel_sound`; the app does not load source code remotely.
 
 ## Migrated capabilities
 
-The embedded application carries the upstream online book discovery/search, novel reader, TXT/EPUB import, reader appearance/page controls, local library and grouped shelves, reading/playback progress, backups and restore, WebDAV synchronization, offline chapter/media downloads, system TTS, audiobook playback and controls, short drama, manga drama and comic browsing/playback, and associated source/network settings. The Rust core, flutter_rust_bridge bindings, configuration/filter assets, Android native plugins/services, and original fonts/assets are included so these features use their real business logic.
+The embedded application carries the upstream online book discovery/search, novel reader, TXT/EPUB import, reader appearance/page controls, local library and grouped shelves, reading/playback progress, backups and restore, WebDAV and multi-device cloud synchronization, UGC story feed, offline chapter/media downloads, system TTS, audiobook playback and controls, short drama, manga drama and comic browsing/playback, and associated source/network settings. The Rust core, flutter_rust_bridge bindings, configuration/filter assets, Android native plugins/services, and original fonts/assets are included so these features use their real business logic.
 
 The new entry is **我的 → 内容入口 → 什锦铺 · 小说与听书**. It opens the migrated `FqApp` in its own provider scope and initializes its runtime once. Existing Spider X novel, reader, and shelf entries remain available and keep their own persistence.
 
@@ -28,7 +28,15 @@ The new entry is **我的 → 内容入口 → 什锦铺 · 小说与听书**. I
 - The upstream vendored `webview_windows` SDK range was updated for Dart 3.12+, and the unused pinned `screen_retriever 0.2.2` dependency was removed. The root's existing `window_manager` fork supplies the compatible `screen_retriever ^0.3.0` dependency.
 - No private backend URL, account token, or production credential is included. The Rust client uses the upstream public content interfaces; optional AI, WebDAV, and user supplied data sources still require user configuration.
 
-## Validation and remaining acceptance
+## 2026-11-18 upstream logic refresh
+
+- Updated the embedded source package to `1.0.205+210`: multi-device synchronization and UGC story feed, plus upstream reader, audio, caching, startup and short-drama signing/retry changes. The unified sync service reads the retired WebDAV configuration for migration and keeps its sync scope explicit.
+- Ported upstream Android `CloudLoginActivity`, `CloudLoginPlugin`, `CloudStoragePlugin`, `SyncStoragePlugin` and provider helpers into the Dashboard host package `com.yumore.dashboard.novelsound.platform.cloudsync`; registered all three plugins with `DashboardActivity`, added package visibility and the non-exported login Activity, and added upstream SMB/FTP support dependencies.
+- Updated the active JNI HTTP range bridge with bounded DNS retry and stream-close race handling. The implementation is mapped to the host package name and retains the existing offline-file bridge and allowed-root checks.
+- Added full runtime license texts for SMBJ/its listed dependencies and Apache Commons Net, Glassfish `javax.el` and `desugar_jdk_libs`; declared the files in the host asset manifest and in the embedded app license registry. Upstream reports the `javax.el` artifact under CDDL/GPLv2 with Classpath Exception; source records remain unmodified.
+- Validation for this refresh: no tests, analyzer, Gradle build, APK, desktop artifact or device/UI check was run. The source and host bridge changes were reviewed statically; the initial integration validation below remains historical.
+
+## Initial integration validation (2026-11-14) and remaining acceptance
 
 - `flutter pub get`: passed with the shared WebView package and the unified secure-storage/`win32 6.x` dependency graph.
 - `flutter analyze --no-pub packages/novel_sound/lib lib/features/novel_sound/novel_sound_entry_page.dart lib/views/user/personal_page.dart`: passed with no issues.

@@ -100,14 +100,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
+    return Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.86,
-        ),
         decoration: BoxDecoration(
           color: context.hgSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -121,34 +116,24 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE4E4E6),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       const Expanded(child: SizedBox()),
                       IconButton(
                         onPressed: () => Navigator.maybePop(context),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
-                          color: Color(0xFF5F5F64),
+                          color: context.hgMuted,
                           size: 22,
                         ),
                       ),
                     ],
                   ),
-                  const Text(
+                  Text(
                     '编辑资料',
                     style: TextStyle(
-                      color: Color(0xFF1E1E21),
+                      color: context.hgOnSurface,
                       fontSize: 25,
                       height: 1.2,
                       fontWeight: FontWeight.w800,
@@ -165,13 +150,10 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Center(
+                  Center(
                     child: Text(
                       '选择官方头像色板',
-                      style: TextStyle(
-                        color: Color(0xFF85858A),
-                        fontSize: 11.5,
-                      ),
+                      style: TextStyle(color: context.hgMuted, fontSize: 11.5),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -262,13 +244,13 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     Container(
                       padding: const EdgeInsets.all(11),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF1EE),
+                        color: Theme.of(context).colorScheme.errorContainer,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         _error!,
-                        style: const TextStyle(
-                          color: Color(0xFFB8442C),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                           fontSize: 12,
                         ),
                       ),
@@ -280,9 +262,11 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     child: FilledButton(
                       onPressed: _saving ? null : _save,
                       style: FilledButton.styleFrom(
-                        backgroundColor: HgColors.ink,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFFB9B9BD),
+                        backgroundColor: context.hgOnSurface,
+                        foregroundColor: context.hgSurface,
+                        disabledBackgroundColor: context.hgMuted.withValues(
+                          alpha: 0.38,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(13),
                         ),
@@ -358,8 +342,8 @@ class _EditLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: Color(0xFF5F5F64),
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.58),
         fontSize: 11.5,
         fontWeight: FontWeight.w600,
       ),

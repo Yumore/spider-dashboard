@@ -31,10 +31,6 @@ abstract final class HgNotificationService {
     if (kIsWeb) return false;
     await initialize();
     final notification = await Permission.notification.request();
-    // 内部缓存目录无需存储权限；仍兼容旧版 Android 的外部下载权限提示。
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      await Permission.storage.request();
-    }
     return notification.isGranted || notification.isLimited;
   }
 

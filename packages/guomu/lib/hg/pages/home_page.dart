@@ -20,6 +20,7 @@ import 'tags_page.dart';
 import 'topics_page.dart';
 import 'user_activity_pages.dart';
 import 'video_more_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -568,7 +569,7 @@ class _HomeHeader extends StatelessWidget {
                 child: Material(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(15),
-                  child: InkWell(
+                  child: HgInkWell(
                     onTap: onSearch,
                     borderRadius: BorderRadius.circular(15),
                     child: SizedBox(
@@ -624,7 +625,7 @@ class _HomeMessageButton extends StatelessWidget {
         Material(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(15),
-          child: InkWell(
+          child: HgInkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(15),
             child: const SizedBox(
@@ -814,7 +815,7 @@ class _HeroSlide extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: Stack(
           fit: StackFit.expand,
@@ -1049,7 +1050,7 @@ class _ShortcutCard extends StatelessWidget {
     return Material(
       color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -1099,7 +1100,7 @@ class _HotRankCard extends StatelessWidget {
       color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -1207,7 +1208,7 @@ class _TopicRailCard extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(17),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
+        child: HgInkWell(
           onTap: onTap,
           child: Stack(
             fit: StackFit.expand,

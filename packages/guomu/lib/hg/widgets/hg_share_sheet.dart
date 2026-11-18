@@ -93,14 +93,6 @@ class _ShareSheetState extends State<_ShareSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.hgLine,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
             const SizedBox(height: 20),
             Text(
               '分享到',
@@ -142,8 +134,8 @@ class _ShareSheetState extends State<_ShareSheet> {
                           widget.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF2B2B2E),
+                          style: TextStyle(
+                            color: context.hgOnSurface,
                             fontSize: 13.5,
                             height: 1.35,
                             fontWeight: FontWeight.w600,
@@ -152,8 +144,8 @@ class _ShareSheetState extends State<_ShareSheet> {
                         const SizedBox(height: 3),
                         Text(
                           widget.subtitle,
-                          style: const TextStyle(
-                            color: Color(0xFF96969A),
+                          style: TextStyle(
+                            color: context.hgMuted,
                             fontSize: 10.5,
                           ),
                         ),
@@ -187,8 +179,8 @@ class _ShareSheetState extends State<_ShareSheet> {
               const SizedBox(height: 12),
               Text(
                 _hint!,
-                style: const TextStyle(
-                  color: Color(0xFF9B6A55),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 11.5,
                 ),
               ),
@@ -243,25 +235,25 @@ class _ShareAction extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: active ? const Color(0xFFEAF7F0) : Colors.white,
+                color: active
+                    ? const Color(0xFF2A9D63).withValues(alpha: 0.12)
+                    : context.hgSurfaceMuted,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: active
-                      ? const Color(0xFFB9E5CC)
-                      : const Color(0xFFE8E8EA),
+                  color: active ? const Color(0xFFB9E5CC) : context.hgLine,
                 ),
               ),
               child: Icon(
                 icon,
-                color: active ? const Color(0xFF2A9D63) : HgColors.ink,
+                color: active ? const Color(0xFF2A9D63) : context.hgOnSurface,
                 size: 23,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF55555A),
+              style: TextStyle(
+                color: context.hgMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),

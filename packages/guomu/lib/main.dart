@@ -83,6 +83,9 @@ class _GuomuBootstrapAppState extends State<_GuomuBootstrapApp> {
       await HgNotificationService.initialize().timeout(
         const Duration(seconds: 8),
       );
+      await HgNotificationService.requestPermissions().timeout(
+        const Duration(seconds: 20),
+      );
     } catch (error) {
       debugPrint('Guomu notification initialization skipped: $error');
     }

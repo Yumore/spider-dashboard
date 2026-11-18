@@ -56,6 +56,27 @@ if [[ -z "$APP_BUNDLE_NAME" || -z "$WIDGET_BUNDLE_NAME" ]]; then
   exit 1
 fi
 
+APP_LIVE_ACTIVITIES="$(/usr/libexec/PlistBuddy -c 'Print :NSSupportsLiveActivities' "$APP_COPY/Info.plist" 2>/dev/null || true)"
+WIDGET_LIVE_ACTIVITIES="$(/usr/libexec/PlistBuddy -c 'Print :NSSupportsLiveActivities' "$WIDGET_INFO" 2>/dev/null || true)"
+if [[ "$APP_LIVE_ACTIVITIES" != "true" || "$WIDGET_LIVE_ACTIVITIES" != "true" ]]; then
+  echo "IPA 能力校验失败：主 App 或 Widget 未启用 Live Activities。" >&2
+  exit 1
+fi
+
+APP_BACKGROUND_AUDIO="$(/usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes:0' "$APP_COPY/Info.plist" 2>/dev/null || true)"
+APP_BACKGROUND_FETCH="$(/usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes:1' "$APP_COPY/Info.plist" 2>/dev/null || true)"
+if [[ "$APP_BACKGROUND_AUDIO" != "audio" || "$APP_BACKGROUND_FETCH" != "fetch" ]]; then
+  echo "IPA 能力校验失败：缺少后台音频或后台刷新能力。" >&2
+  exit 1
+fi
+
+APP_LANDSCAPE_LEFT="$(/usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations:1' "$APP_COPY/Info.plist" 2>/dev/null || true)"
+APP_LANDSCAPE_RIGHT="$(/usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations:2' "$APP_COPY/Info.plist" 2>/dev/null || true)"
+if [[ "$APP_LANDSCAPE_LEFT" != "UIInterfaceOrientationLandscapeLeft" || "$APP_LANDSCAPE_RIGHT" != "UIInterfaceOrientationLandscapeRight" ]]; then
+  echo "IPA 方向校验失败：iPhone 未声明左右横屏。" >&2
+  exit 1
+fi
+
 (
   cd "$OUT_DIR"
   /usr/bin/zip -qry "$IPA_NAME" Payload

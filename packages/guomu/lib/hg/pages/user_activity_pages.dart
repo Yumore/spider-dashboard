@@ -11,6 +11,7 @@ import '../widgets/hg_components.dart';
 import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'creator_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class MyFollowsPage extends StatefulWidget {
   const MyFollowsPage({super.key});
@@ -95,7 +96,7 @@ class _MyFollowsPageState extends State<MyFollowsPage> {
                     color: context.hgSurface,
                     borderRadius: BorderRadius.circular(13),
                     clipBehavior: Clip.antiAlias,
-                    child: InkWell(
+                    child: HgInkWell(
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => CreatorPage(userId: author.id),
@@ -258,10 +259,8 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
     if (!mounted) return;
     await showHgAdaptiveSheetBuilder<void>(
       context,
+      childScrollable: true,
       builder: (context) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.72,
-        ),
         decoration: BoxDecoration(
           color: context.hgSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -269,15 +268,6 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 9),
-            Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5E5E7),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
               child: Column(
@@ -285,8 +275,8 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
                 children: [
                   Text(
                     message.title,
-                    style: const TextStyle(
-                      color: Color(0xFF202124),
+                    style: TextStyle(
+                      color: context.hgOnSurface,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
@@ -295,10 +285,7 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
                     const SizedBox(height: 6),
                     Text(
                       message.time,
-                      style: const TextStyle(
-                        color: Color(0xFF99999D),
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: context.hgMuted, fontSize: 11),
                     ),
                   ],
                 ],
@@ -309,8 +296,8 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                 child: Text(
                   _plainMessage(message.content),
-                  style: const TextStyle(
-                    color: Color(0xFF444448),
+                  style: TextStyle(
+                    color: context.hgOnSurface.withValues(alpha: 0.78),
                     fontSize: 14.5,
                     height: 1.75,
                   ),
@@ -360,7 +347,7 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
                     color: context.hgSurface,
                     borderRadius: BorderRadius.circular(13),
                     clipBehavior: Clip.antiAlias,
-                    child: InkWell(
+                    child: HgInkWell(
                       onTap: () => _openMessage(message),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(14, 13, 6, 13),
@@ -578,7 +565,7 @@ class _MyFollowersPageState extends State<MyFollowersPage> {
                     color: context.hgSurface,
                     borderRadius: BorderRadius.circular(13),
                     clipBehavior: Clip.antiAlias,
-                    child: InkWell(
+                    child: HgInkWell(
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => CreatorPage(userId: author.id),

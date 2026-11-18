@@ -84,6 +84,13 @@ abstract final class Settings {
   /// Opt-in simultaneous audio in multiview; each cell keeps its room volume.
   static const multiviewMixAudio = BoolSetting('multiviewMixAudio', section: 'app', defaultValue: false);
 
+  /// Remembered display, empty for the current screen, unset before selection.
+  static const multiviewProjectionDisplay = StringSetting(
+    'multiviewProjectionDisplay',
+    section: 'app',
+    defaultValue: 'unset',
+  );
+
   /// Show the splash page.
   static const showSplashPage = BoolSetting('showSplashPage', section: 'app', defaultValue: true);
 
@@ -511,6 +518,14 @@ abstract final class Settings {
     defaultValue: 'followGlobal',
   );
 
+  /// New (A08.17): optional upward chat only in portrait fullscreen.
+  static const portraitFullscreenDanmakuLayout = StringSetting(
+    'portraitFullscreenDanmakuLayout',
+    section: 'player',
+    defaultValue: 'rolling',
+    allowed: {'rolling', 'stacked'},
+  );
+
   /// Remember per-room portrait overrides.
   static const rememberPortraitRoomOverride = BoolSetting(
     'rememberPortraitRoomOverride',
@@ -537,6 +552,12 @@ abstract final class Settings {
   /// The wide room's chat column is folded away (docs/A-界面设计/A07-直播间界面/A07.5-宽屏左右分栏
   /// change 7; new in v4, remembered for the next room).
   static const livePlayChatCollapsed = BoolSetting('livePlayChatCollapsed', section: 'player', defaultValue: false);
+
+  /// Wide rooms keep the figures, the time on air and the quality and line
+  /// pickers under the picture rather than above the chat
+  /// (docs/A-界面设计/A07-直播间界面/A07.44-宽屏视频底栏开关, GitHub issue #180;
+  /// new in v4, the bar 5.6.3 shipped with).
+  static const livePlayWideFooter = BoolSetting('livePlayWideFooter', section: 'player', defaultValue: true);
 
   /// New (docs/A-界面设计/A07-直播间界面/A07.13-切换直播间面板/brief.md, docs/A-界面设计/A07-直播间界面/A07.13-切换直播间面板 c4; 3.x has no such
   /// setting): how the live room's "切换直播间" panel shows the rooms, kept
@@ -885,6 +906,30 @@ abstract final class Settings {
     defaultValue: false,
   );
 
+  /// Show only chromatic platform chat; off for existing installations.
+  static const danmakuColoredOnly = BoolSetting('danmakuColoredOnly', section: 'danmaku', defaultValue: false);
+
+  /// Minimum known sender level; zero leaves levels unrestricted.
+  static const danmakuMinUserLevel = IntSetting(
+    'danmakuMinUserLevel',
+    section: 'danmaku',
+    defaultValue: 0,
+    min: 0,
+    max: 999,
+  );
+
+  /// Minimum known fan badge level; zero leaves badge levels unrestricted.
+  static const danmakuMinFansLevel = IntSetting(
+    'danmakuMinFansLevel',
+    section: 'danmaku',
+    defaultValue: 0,
+    min: 0,
+    max: 999,
+  );
+
+  /// Persistent list reminder; closing its banner does not disable it.
+  static const showCellularWarning = BoolSetting('showCellularWarning', section: 'player', defaultValue: true);
+
   /// Similarity filter.
   static const enableDanmakuSimilarityFilter = BoolSetting(
     'enableDanmakuSimilarityFilter',
@@ -996,6 +1041,9 @@ abstract final class Settings {
 
   /// Local clock and media input-rate presentation; absent keys retain defaults.
   static const playbackHud = JsonSetting('playbackHud', section: 'player', defaultValue: {});
+
+  /// Opt-in codec, Raw and CDN annotations; older installations stay concise.
+  static const playbackLineDetails = BoolSetting('playbackLineDetails', section: 'player', defaultValue: false);
 
   /// Opt-in coexistence with external media; system interruptions still apply.
   static const allowAudioMixing = BoolSetting('allowAudioMixing', section: 'volume', defaultValue: false);
@@ -2044,6 +2092,7 @@ abstract final class Settings {
     enableFullScreenDefault,
     autoSwitchLiveFollows,
     multiviewMixAudio,
+    multiviewProjectionDisplay,
     showSplashPage,
     refreshRateMode,
     matchVideoFrameRate,
@@ -2116,11 +2165,13 @@ abstract final class Settings {
     portraitFullscreenDisplayMode,
     portraitPipFollowSource,
     portraitDanmakuMode,
+    portraitFullscreenDanmakuLayout,
     rememberPortraitRoomOverride,
     portraitFullscreenSwipeSwitch,
     showPortraitDiagnostics,
     portraitRoomOverrides,
     livePlayChatCollapsed,
+    livePlayWideFooter,
     roomSwitcherLayout,
     hideDanmaku,
     noEmojiMode,
@@ -2170,6 +2221,10 @@ abstract final class Settings {
     pipDanmakuFps,
     pipDanmakuAutoFps,
     filterDouyuSuspectedAutomatedMessages,
+    danmakuColoredOnly,
+    danmakuMinUserLevel,
+    danmakuMinFansLevel,
+    showCellularWarning,
     enableDanmakuSimilarityFilter,
     danmakuSimilarityThreshold,
     danmakuSimilarityCacheDuration,
@@ -2185,6 +2240,7 @@ abstract final class Settings {
     roomVolumes,
     roomVolumeGains,
     playbackHud,
+    playbackLineDetails,
     customBackground,
     screenCaptureHint,
     allowAudioMixing,

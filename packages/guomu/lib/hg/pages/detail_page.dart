@@ -21,6 +21,7 @@ import 'creator_page.dart';
 import 'login_sheet.dart';
 import 'short_video_page.dart';
 import 'tag_feed_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class DramaDetailPage extends StatefulWidget {
   const DramaDetailPage({
@@ -110,15 +111,6 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 9),
-              Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E5E7),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
                 child: Row(
@@ -140,8 +132,8 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                           const SizedBox(height: 4),
                           Text(
                             episodeLabel,
-                            style: const TextStyle(
-                              color: Color(0xFF929297),
+                            style: TextStyle(
+                              color: sheetContext.hgMuted,
                               fontSize: 11,
                             ),
                           ),
@@ -198,7 +190,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                 _DetailAction(
                   icon: Icons.history_toggle_off_rounded,
                   title: '清除本剧观看记录',
-                  color: const Color(0xFFC64F45),
+                  color: Theme.of(sheetContext).colorScheme.error,
                   onTap: () async {
                     Navigator.pop(sheetContext);
                     await HgLocalHistory.remove(widget.videoId);
@@ -469,7 +461,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: InkWell(
+                            child: HgInkWell(
                               onTap: detail.author == null
                                   ? null
                                   : () => Navigator.of(context).push(
@@ -654,7 +646,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                             return Material(
                               color: theme.colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(14),
-                              child: InkWell(
+                              child: HgInkWell(
                                 onTap: () => _play(episode.number),
                                 borderRadius: BorderRadius.circular(14),
                                 child: Center(
@@ -728,7 +720,7 @@ class _DetailAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effective = color ?? HgColors.ink;
-    return InkWell(
+    return HgInkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),

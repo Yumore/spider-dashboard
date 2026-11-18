@@ -9,6 +9,7 @@ import '../widgets/hg_components.dart';
 import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'short_video_page.dart';
+import '../widgets/hg_pressable.dart';
 
 class TopicsPage extends StatefulWidget {
   const TopicsPage({super.key});
@@ -167,7 +168,7 @@ class _FeaturedTopic extends StatelessWidget {
       color: HgColors.ink,
       borderRadius: BorderRadius.circular(26),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: SizedBox(
           height: 246,
@@ -271,7 +272,7 @@ class _TopicTile extends StatelessWidget {
       color: context.hgSurface,
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

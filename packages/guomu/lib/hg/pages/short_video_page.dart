@@ -13,6 +13,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../services/hg_live_activity_service.dart';
+import '../services/hg_now_playing_service.dart';
 import '../models/hg_download_models.dart';
 import '../utils/hg_download_manager.dart';
 import '../utils/hg_local_history.dart';
@@ -24,6 +25,7 @@ import '../widgets/secure_cover.dart';
 import 'comments_sheet.dart';
 import 'episodes_sheet.dart';
 import 'login_sheet.dart';
+import '../widgets/hg_pressable.dart';
 
 class ShortVideoPage extends StatefulWidget {
   const ShortVideoPage({
@@ -92,6 +94,7 @@ class _ShortVideoPageState extends State<ShortVideoPage>
     _pageController.dispose();
     _pageScrolling.dispose();
     unawaited(HgLiveActivityService.end());
+    unawaited(HgNowPlayingService.clear());
     unawaited(HgPlayerDisplay.reset());
     super.dispose();
   }
@@ -667,6 +670,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
   String? _error;
   DateTime? _lastProgressAt;
   DateTime? _lastLiveActivityAt;
+  DateTime? _lastNowPlayingAt;
   bool _scrubbing = false;
   bool _resumeAfterScrub = false;
   Duration _scrubPosition = Duration.zero;
@@ -676,6 +680,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
     super.initState();
     _loading = widget.prepare;
     widget.scrolling.addListener(_handleScrollingChanged);
+    if (widget.active) unawaited(_initializeNowPlaying());
     if (widget.prepare) unawaited(_initializeWhenReady());
   }
 
@@ -700,12 +705,36 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
     }
     if (oldWidget.active != widget.active) {
       _syncPlaybackState();
+      if (widget.active) unawaited(_initializeNowPlaying());
     }
   }
 
   bool get _showVideo => widget.active;
 
   void _handleScrollingChanged() => _syncPlaybackState();
+
+  Future<void> _initializeNowPlaying() async {
+    await HgNowPlayingService.initialize(
+      onPlay: () async {
+        await _controller?.play();
+        _emitProgress(force: true);
+      },
+      onPause: () async {
+        await _controller?.pause();
+        _emitProgress(force: true);
+      },
+      onToggle: () async {
+        await _controller?.toggle();
+        _emitProgress(force: true);
+      },
+      onSeek: (seconds) async {
+        await _controller?.seekTo(
+          Duration(milliseconds: (seconds * 1000).round()),
+        );
+        _emitProgress(force: true);
+      },
+    );
+  }
 
   void _syncPlaybackState() {
     if (!_showVideo) _emitProgress(force: true);
@@ -757,13 +786,34 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
     if (duration <= Duration.zero) return;
     final now = DateTime.now();
     final last = _lastProgressAt;
-    if (!force &&
-        last != null &&
-        now.difference(last) < const Duration(seconds: 5)) {
-      return;
+    final progressDue =
+        force ||
+        last == null ||
+        now.difference(last) >= const Duration(seconds: 5);
+    if (progressDue) {
+      _lastProgressAt = now;
+      widget.onProgress(controller.position, duration);
     }
-    _lastProgressAt = now;
-    widget.onProgress(controller.position, duration);
+    final lastNowPlaying = _lastNowPlayingAt;
+    if (force ||
+        lastNowPlaying == null ||
+        now.difference(lastNowPlaying) >= const Duration(seconds: 2)) {
+      _lastNowPlayingAt = now;
+      unawaited(
+        HgNowPlayingService.update(
+          title: widget.detail.title,
+          subtitle: '第 ${widget.episode.number} 集 · 果幕',
+          cover: widget.detail.cover,
+          position: controller.position,
+          duration: duration,
+          isPlaying: controller.isPlaying,
+          speed: widget.speedLocked || _speedBoosting
+              ? 2
+              : widget.playbackSpeed,
+          deepLink: 'guomu://video/${widget.detail.id}',
+        ),
+      );
+    }
     final liveNow = DateTime.now();
     if (_lastLiveActivityAt == null ||
         liveNow.difference(_lastLiveActivityAt!) >
@@ -860,6 +910,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
             await controller.pause();
           }
           setState(() => _loading = false);
+          _emitProgress(force: true);
           return;
         } catch (error) {
           controller?.dispose();
@@ -953,29 +1004,34 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
     setState(() => _scrubPosition = _positionForFraction(fraction));
   }
 
-  Future<void> _finishScrubbing(double fraction) async {
+  void _finishScrubbing(double fraction) {
     final controller = _controller;
     if (controller == null) return;
     final target = _positionForFraction(fraction);
-    await controller.seekTo(target);
+    final shouldResume = _resumeAfterScrub;
+    setState(() {
+      _scrubbing = false;
+      _scrubPosition = target;
+    });
     widget.onProgress(target, controller.duration);
-    if (_resumeAfterScrub) await controller.play();
-    if (mounted) {
-      setState(() {
-        _scrubbing = false;
-        _scrubPosition = target;
-      });
-    }
     HapticFeedback.selectionClick();
+    unawaited(() async {
+      await controller.seekTo(target);
+      if (shouldResume) await controller.play();
+      _emitProgress(force: true);
+    }());
   }
 
-  Future<void> _seekFromTap(double fraction) async {
+  void _seekFromTap(double fraction) {
     final controller = _controller;
     if (controller == null) return;
     final target = _positionForFraction(fraction);
-    await controller.seekTo(target);
+    setState(() => _scrubPosition = target);
     widget.onProgress(target, controller.duration);
     HapticFeedback.selectionClick();
+    unawaited(
+      controller.seekTo(target).then((_) => _emitProgress(force: true)),
+    );
   }
 
   Future<void> _startBoost(LongPressStartDetails details) async {
@@ -1140,7 +1196,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
             Positioned(
               left: 12,
               right: 12,
-              bottom: 8 + bottom,
+              bottom: 12 + bottom,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1211,11 +1267,16 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
                       ),
                       const SizedBox(width: 16),
                       GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () => unawaited(HgPlayerDisplay.reset()),
-                        child: const Icon(
-                          Icons.fullscreen_exit_rounded,
-                          color: Colors.white,
-                          size: 23,
+                        child: const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Icon(
+                            Icons.fullscreen_exit_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ),
                       ),
                     ],
@@ -1249,10 +1310,13 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  HgCoverImage(
-                    url: widget.detail.cover,
-                    title: widget.detail.title,
-                  ),
+                  if (_controller == null || !widget.active || !isWideVideo)
+                    HgCoverImage(
+                      url: widget.detail.cover,
+                      title: widget.detail.title,
+                    )
+                  else
+                    const ColoredBox(color: Colors.black),
                   if (_controller != null && showVideo)
                     _controller!.buildView(),
                 ],
@@ -1316,7 +1380,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
                       Positioned(
                         left: 18,
                         right: 76,
-                        bottom: 78,
+                        bottom: 150,
                         child: SafeArea(
                           top: false,
                           bottom: false,
@@ -1349,7 +1413,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
                       ),
                       Positioned(
                         right: 8,
-                        bottom: 78,
+                        bottom: 150,
                         child: SafeArea(
                           top: false,
                           bottom: false,
@@ -1375,40 +1439,39 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
                       Positioned(
                         left: 12,
                         right: 12,
-                        bottom: 22,
+                        bottom: 8,
                         child: SafeArea(
                           top: false,
-                          child: _WatchAllBar(
-                            label:
-                                '选集 · 全 ${widget.detail.totalEpisodes > 0 ? widget.detail.totalEpisodes : (widget.detail.episodeCount > 0 ? widget.detail.episodeCount : widget.detail.episodes.length)} 集 · 当前第 ${widget.episode.number} 集',
-                            onTap: widget.onOpenEpisodes,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_controller != null) ...[
+                                AnimatedBuilder(
+                                  animation: _controller!,
+                                  builder: (context, child) => _SeekBar(
+                                    position: _scrubbing
+                                        ? _scrubPosition
+                                        : _controller!.position,
+                                    duration: _controller!.duration,
+                                    scrubbing: _scrubbing,
+                                    showTimeLabels: false,
+                                    onScrubStart: _startScrubbing,
+                                    onScrubUpdate: _updateScrubbing,
+                                    onScrubEnd: _finishScrubbing,
+                                    onTapSeek: _seekFromTap,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                              ],
+                              _WatchAllBar(
+                                label:
+                                    '选集 · 全 ${widget.detail.totalEpisodes > 0 ? widget.detail.totalEpisodes : (widget.detail.episodeCount > 0 ? widget.detail.episodeCount : widget.detail.episodes.length)} 集 · 当前第 ${widget.episode.number} 集',
+                                onTap: widget.onOpenEpisodes,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                      if (_controller != null)
-                        Positioned(
-                          left: 8,
-                          right: 8,
-                          bottom: 0,
-                          child: SafeArea(
-                            top: false,
-                            child: AnimatedBuilder(
-                              animation: _controller!,
-                              builder: (context, child) => _SeekBar(
-                                position: _scrubbing
-                                    ? _scrubPosition
-                                    : _controller!.position,
-                                duration: _controller!.duration,
-                                scrubbing: _scrubbing,
-                                showTimeLabels: false,
-                                onScrubStart: _startScrubbing,
-                                onScrubUpdate: _updateScrubbing,
-                                onScrubEnd: _finishScrubbing,
-                                onTapSeek: _seekFromTap,
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -1429,10 +1492,9 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
             ),
           if (!isLandscape && isWideVideo && widget.chromeVisible)
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 74,
-              child: Center(child: _LandscapeEntry(onTap: _enterLandscape)),
+              top: MediaQuery.paddingOf(context).top + 58,
+              right: 16,
+              child: _LandscapeEntry(onTap: _enterLandscape),
             ),
           if (_controller != null && !_loading)
             IgnorePointer(
@@ -1538,28 +1600,6 @@ class _SeekBarState extends State<_SeekBar> {
     return (widget.position.inMilliseconds / durationMs).clamp(0.0, 1.0);
   }
 
-  double _fractionAt(Offset localPosition) {
-    final width = context.size?.width ?? 1;
-    return (localPosition.dx / width).clamp(0.0, 1.0);
-  }
-
-  void _start(DragStartDetails details) {
-    final fraction = _fractionAt(details.localPosition);
-    setState(() => _dragFraction = fraction);
-    widget.onScrubStart(fraction);
-  }
-
-  void _update(DragUpdateDetails details) {
-    final fraction = _fractionAt(details.localPosition);
-    setState(() => _dragFraction = fraction);
-    widget.onScrubUpdate(fraction);
-  }
-
-  void _end(DragEndDetails details) {
-    final fraction = _dragFraction ?? _currentFraction;
-    widget.onScrubEnd(fraction);
-  }
-
   @override
   void didUpdateWidget(covariant _SeekBar oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1577,131 +1617,123 @@ class _SeekBarState extends State<_SeekBar> {
 
   @override
   Widget build(BuildContext context) {
-    final fraction = _dragFraction ?? _currentFraction;
+    final fraction = (_dragFraction ?? _currentFraction).clamp(0.0, 1.0);
+    final durationMs = widget.duration.inMilliseconds;
+    final previewPosition = Duration(
+      milliseconds: (durationMs * fraction).round(),
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final bubbleLeft = (width * fraction - 29).clamp(0.0, width - 58);
-        return Semantics(
-          slider: true,
-          label: '播放进度',
-          value: '${(fraction * 100).round()}%',
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.showTimeLabels)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
-                  child: Row(
-                    children: [
-                      Text(
-                        _time(widget.position),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10.5,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
+        final trackWidth = (width - 16).clamp(1.0, width);
+        final bubbleLeft = (8 + trackWidth * fraction - 29).clamp(
+          0.0,
+          width - 58,
+        );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.showTimeLabels)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 1),
+                child: Row(
+                  children: [
+                    Text(
+                      _time(previewPosition),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
-                      const Spacer(),
-                      Text(
-                        _time(widget.duration),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10.5,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _time(widget.duration),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10.5,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
-                    ],
-                  ),
-                ),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: (details) =>
-                    widget.onTapSeek(_fractionAt(details.localPosition)),
-                onHorizontalDragStart: _start,
-                onHorizontalDragUpdate: _update,
-                onHorizontalDragEnd: _end,
-                child: SizedBox(
-                  height: widget.showTimeLabels ? 18 : 20,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          height: 3,
-                          width: width,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: fraction,
-                          child: Container(
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: widget.scrubbing
-                                  ? Colors.white
-                                  : HgColors.orange,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment(-1 + fraction * 2, 0),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 120),
-                          width: widget.scrubbing ? 13 : 8,
-                          height: widget.scrubbing ? 13 : 8,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.35),
-                                blurRadius: 7,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (widget.scrubbing)
-                        Positioned(
-                          left: bubbleLeft,
-                          top: -25,
-                          child: IgnorePointer(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.72),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                _time(widget.position),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  fontFeatures: [FontFeature.tabularFigures()],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            SizedBox(
+              height: widget.showTimeLabels ? 38 : 42,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3.5,
+                      activeTrackColor: widget.scrubbing
+                          ? Colors.white
+                          : HgColors.orange,
+                      inactiveTrackColor: Colors.white.withValues(alpha: 0.22),
+                      thumbColor: Colors.white,
+                      overlayColor: Colors.transparent,
+                      thumbShape: RoundSliderThumbShape(
+                        enabledThumbRadius: widget.scrubbing ? 6.5 : 4.5,
+                        elevation: 0,
+                        pressedElevation: 0,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 0,
+                      ),
+                      tickMarkShape: SliderTickMarkShape.noTickMark,
+                      showValueIndicator: ShowValueIndicator.never,
+                      trackShape: const RoundedRectSliderTrackShape(),
+                    ),
+                    child: Slider(
+                      value: fraction,
+                      min: 0,
+                      max: 1,
+                      allowedInteraction: SliderInteraction.tapAndSlide,
+                      onChangeStart: (value) {
+                        setState(() => _dragFraction = value);
+                        widget.onScrubStart(value);
+                      },
+                      onChanged: (value) {
+                        setState(() => _dragFraction = value);
+                        widget.onScrubUpdate(value);
+                      },
+                      onChangeEnd: (value) {
+                        setState(() => _dragFraction = value);
+                        widget.onScrubEnd(value);
+                      },
+                    ),
+                  ),
+                  if (widget.scrubbing)
+                    Positioned(
+                      left: bubbleLeft,
+                      top: -18,
+                      child: IgnorePointer(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.78),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _time(previewPosition),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
@@ -1771,7 +1803,7 @@ class _WatchAllBar extends StatelessWidget {
       color: Colors.black.withValues(alpha: 0.48),
       borderRadius: BorderRadius.circular(10),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: HgInkWell(
         onTap: onTap,
         child: SizedBox(
           height: 44,
@@ -1850,29 +1882,30 @@ class _LandscapeEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.fullscreen_rounded,
-            color: Colors.white,
-            size: 17,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+    return Material(
+      color: Colors.black.withValues(alpha: 0.48),
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: HgInkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.fullscreen_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 5),
+              Text(
+                '全屏观看',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 5),
-          const Text(
-            '全屏观看',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1904,18 +1937,10 @@ class _RailAction extends StatelessWidget {
               width: 43,
               height: 43,
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 190),
-                switchInCurve: Curves.easeOutBack,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween<double>(
-                      begin: 0.72,
-                      end: 1,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                ),
+                duration: const Duration(milliseconds: 160),
+                switchInCurve: Curves.easeOut,
+                transitionBuilder: (child, animation) =>
+                    FadeTransition(opacity: animation, child: child),
                 child: Icon(
                   icon,
                   key: ValueKey<IconData>(icon),

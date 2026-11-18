@@ -9,6 +9,7 @@ import 'package:live_iptv/live_iptv.dart';
 import 'package:live_media/live_media.dart';
 import 'package:live_player/live_player.dart';
 import 'package:live_store/live_store.dart';
+import 'package:live_vod/live_vod.dart';
 import 'package:pure_live/app/app_log.dart';
 import 'package:pure_live/app/network.dart';
 import 'package:pure_live/features/live_play/danmaku/chat_feed.dart';
@@ -19,6 +20,9 @@ import 'package:pure_live/i18n/i18n.dart';
 import 'package:pure_live/platform/system_access.dart';
 import 'package:pure_live/shared/danmaku/emotes.dart';
 import 'package:pure_live/shared/danmaku/gift_flights.dart';
+import 'package:pure_live/shared/rooms/archive/archive_recording.dart';
+import 'package:pure_live/shared/rooms/archive/bilibili_archive_controller.dart';
+import 'package:pure_live/shared/rooms/archive_playback.dart';
 import 'package:pure_live/shared/rooms/platform_texts.dart';
 import 'package:pure_live/shared/rooms/play_quality.dart';
 import 'package:pure_live/shared/rooms/playback_diagnostics.dart';
@@ -74,7 +78,7 @@ enum ChatConnection {
 
 /// What the chat list says above its lines about Bilibili's names (task
 /// B06 c1): the server masked every name (`观***`) for a connection that
-/// was not logged in; since 2026-10 guests get full names, so the hint
+/// was not logged in; some guest connections now get full names, so the hint
 /// stands on the names that arrive, not on the login alone.
 enum ChatNameHint {
   /// Nothing to say: not Bilibili, no danmaku, or full names.
@@ -98,12 +102,15 @@ class LiveRoomController extends ChangeNotifier {
   /// Creates the controller for [room] on [site]; call [start].
   new({
     required this._room,
-    required this.site,
+    required LiveSite site,
     required this.session,
     required this.danmaku,
     required this.danmakuSupported,
     required this.store,
+    this.archiveSiteOf,
     this.mobile = false,
+    this.archiveFactory,
+    ArchiveSelection? initialArchive,
     this.toast,
     this.sleepSessionOnStart = false,
     this.minuteLength = const Duration(minutes: 1),
@@ -113,14 +120,22 @@ class LiveRoomController extends ChangeNotifier {
     this.refreshInterval = const Duration(seconds: 60),
     this.danmakuStartTimeout = const Duration(seconds: 30),
     bool initialAudioOnly = false,
-  }) : _now = now ?? DateTime.now {
+  }) : _liveSite = site,
+       _now = now ?? DateTime.now {
     _audioOnly = initialAudioOnly;
+    _archiveSelection = initialArchive;
     _filter = DanmakuMessageFilter(clock: _now)..shapeOf = chatTextShaper(emotes, _room.platform);
     _statusLines = DanmakuNoticeThrottle(clock: _now);
   }
 
   /// The platform.
-  final LiveSite site;
+  final LiveSite _liveSite;
+
+  /// Captured registry lookup for a replay selected from another platform.
+  final LiveSite? Function(String platform)? archiveSiteOf;
+
+  /// The source of the media shown now; the live resolver stays separately held.
+  LiveSite get site => isArchive ? archiveSiteOf?.call(_archiveSelection!.recording.platform) ?? _liveSite : _liveSite;
 
   /// The player; the page owns it and disposes it after this controller.
   final PlaybackSession session;
@@ -241,6 +256,17 @@ class LiveRoomController extends ChangeNotifier {
   bool _disposed = false;
   int _maskedChats = 0;
   int _namedChats = 0;
+  Timer? _nameHintTimer;
+  bool _nameHintDismissed = false;
+
+  /// A brief, dismissible explanation, once per room visit (not per reconnect).
+  void dismissNameHint() {
+    if (_disposed || _nameHintDismissed) return;
+    _nameHintDismissed = true;
+    _nameHintTimer?.cancel();
+    _notify();
+  }
+
   bool _unsupportedShown = false;
   bool _historyRecorded = false;
   // C01.4: entering the room says once that the platform served another
@@ -283,7 +309,153 @@ class LiveRoomController extends ChangeNotifier {
   ChatConnection _chatConnection = ChatConnection.idle;
 
   /// The room as known now (the card's data until the detail arrives).
-  LiveRoom get room => _room;
+  LiveRoom get room => isArchive
+      ? _archiveSelection!.presenter.copyWith(
+          title: '${i18n('archive_tab_label')} · $archiveTitle',
+          liveStatus: LiveStatus.replay,
+          nick: _archiveSelection!.presenter.nick.isNotEmpty
+              ? _archiveSelection!.presenter.nick
+              : switch (_archive?.video) {
+                  final BilibiliArchivePart v => v.archive.owner.name,
+                  final DouyuVodVideo v => v.authorName,
+                  final HuyaArchiveVideo v => v.authorName,
+                  _ => _archiveSelection?.recording.author ?? '',
+                },
+          link: switch (_archiveSelection?.recording.platform) {
+            'bilibili' => 'https://www.bilibili.com/video/${_archiveSelection!.recording.id}/',
+            'huya' => 'https://v.huya.com/play/${_archiveSelection!.recording.id}.html',
+            'douyu' => 'https://v.douyu.com/show/${_archiveSelection!.recording.id}',
+            'soop' => 'https://vod.sooplive.com/player/${_archiveSelection!.recording.id}',
+            _ => _room.link,
+          },
+        )
+      : _room;
+
+  /// Resolves VOD on this runtime's existing session, never another player.
+  final ArchivePlaybackController Function(ArchiveRecording recording)? archiveFactory;
+  ArchiveSelection? _archiveSelection;
+  ArchivePlaybackController? _archive;
+  Future<void> _archiveRetirement = Future.value();
+  Future<void> _archiveTransition = Future.value();
+  int _archiveGeneration = 0;
+  StreamSubscription<LiveMessage>? _archiveMessages;
+  StreamSubscription<LiveRetraction>? _archiveClears;
+
+  /// Playback-mode metadata, independent of the live resolver.
+  ArchiveSelection? get archiveSelection => _archiveSelection;
+
+  /// Current official recording controller.
+  ArchivePlaybackController? get archive => _archive;
+
+  /// The room shell is currently presenting a recording.
+  bool get isArchive => _archiveSelection != null;
+
+  /// Synthetic standalone video ids are never treated as verified live rooms.
+  bool get canReturnToLive => !_room.roomId.startsWith('archive-');
+
+  /// Outstanding metadata writes after a replay controller is released.
+  Future<void> get archiveRetirement => _archiveRetirement;
+
+  /// Main title without a repeated per-part suffix.
+  String get archiveTitle => archiveDisplayTitle(switch (_archive?.video) {
+    final BilibiliArchivePart v => v.archive.title,
+    final ArchiveVideo v => v.title,
+    _ => _archiveSelection?.recording.title ?? '',
+  }, author: _archiveSelection?.recording.author ?? '');
+
+  void _archiveChanged() {
+    if (_disposed || _archive == null) return;
+    final archive = _archive!;
+    _failure = archive.error;
+    _stage = archive.error != null
+        ? RoomStage.unplayable
+        : archive.video == null
+        ? RoomStage.loading
+        : RoomStage.playing;
+    _qualities = [
+      for (final q in archive.qualities)
+        if (q.playable) LivePlayQuality(quality: q.label, id: q.id),
+    ];
+    _qualityIndex = _qualities
+        .indexWhere((q) => '${q.id}' == archive.qualityId)
+        .clamp(0, _qualities.isEmpty ? 0 : _qualities.length - 1);
+    _switching = archive.busy;
+    _notify();
+  }
+
+  Future<void> _releaseArchive() async {
+    final archive = _archive;
+    _archive = null;
+    archive?.removeListener(_archiveChanged);
+    await _archiveMessages?.cancel();
+    await _archiveClears?.cancel();
+    _archiveMessages = null;
+    _archiveClears = null;
+    if (archive != null) {
+      archive.dispose();
+      _archiveRetirement = archive.retirement;
+      await _archiveRetirement;
+    }
+  }
+
+  /// Stops live traffic and switches media on the same native playback owner.
+  Future<void> playArchive(ArchiveSelection selection) {
+    final generation = ++_archiveGeneration;
+    _archiveSelection = selection;
+    _filter.shapeOf = chatTextShaper(emotes, selection.recording.platform);
+    _opens++;
+    _epoch++;
+    _refreshTimer?.cancel();
+    _superChatTimer?.cancel();
+    _stage = RoomStage.loading;
+    _notify();
+    return _archiveTransition = _archiveTransition.catchError((Object _) {}).then((_) async {
+      if (_disposed || generation != _archiveGeneration) return;
+      await _syncDanmaku();
+      await _releaseArchive();
+      await session.stop();
+      if (_disposed || generation != _archiveGeneration) return;
+      chat.clear();
+      _clearSuperChats();
+      _retractions.add(const LiveRetraction.all());
+      _setChat(ChatConnection.unsupported);
+      final factory = archiveFactory;
+      if (factory == null) throw StateError('Replay factory unavailable');
+      final archive = factory(selection.recording)..addListener(_archiveChanged);
+      _archive = archive;
+      _setChat(archive.supportsDanmaku ? ChatConnection.connected : ChatConnection.unsupported);
+      _archiveMessages = archive.messages.listen(_onMessage);
+      _archiveClears = archive.retractions.listen((event) {
+        if (_disposed) return;
+        chat.clear();
+        _retractions.add(event);
+      });
+      await archive.open(selection.recording.id);
+      if (_disposed || generation != _archiveGeneration) return;
+      if (_audioOnly) await session.setAudioOnly(enabled: true);
+      _archiveChanged();
+    });
+  }
+
+  /// Saves the recording and restores the original room's live resolver.
+  Future<void> leaveArchive() async {
+    if (!isArchive || _disposed) return;
+    final generation = ++_archiveGeneration;
+    await _archiveTransition.catchError((Object _) {});
+    if (_disposed || generation != _archiveGeneration) return;
+    await _releaseArchive();
+    await session.stop();
+    if (_disposed || generation != _archiveGeneration) return;
+    _archiveSelection = null;
+    _filter.shapeOf = chatTextShaper(emotes, _room.platform);
+    await session.setRate(1);
+    chat.clear();
+    _retractions.add(const LiveRetraction.all());
+    if (refreshInterval > Duration.zero) {
+      _refreshTimer = Timer.periodic(refreshInterval, (_) => unawaited(refreshDetail()));
+    }
+    await load();
+  }
 
   /// Whether an external playback owner may still restore this room.
   bool get isDisposed => _disposed;
@@ -391,12 +563,12 @@ class LiveRoomController extends ChangeNotifier {
   static const int maskedChatsForExpiredLogin = 3;
 
   /// What the chat list says about Bilibili's names (B06 c1): nothing while
-  /// the names come in full (guests get them since 2026-10); once this
+  /// the names come in full, including anonymous connections; once this
   /// connection got [maskedChatsForExpiredLogin] masked names and no full
   /// one, [ChatNameHint.guest] without a login and
   /// [ChatNameHint.loginExpired] with one.
   ChatNameHint get nameHint {
-    if (_room.platform != SiteIds.bilibili) return ChatNameHint.none;
+    if (_nameHintDismissed || _room.platform != SiteIds.bilibili) return ChatNameHint.none;
     if (_chatConnection == ChatConnection.idle || _chatConnection == ChatConnection.unsupported) {
       return ChatNameHint.none;
     }
@@ -565,6 +737,10 @@ class LiveRoomController extends ChangeNotifier {
       );
     }
     await _reloadFilter();
+    if (_archiveSelection case final selection?) {
+      await playArchive(selection);
+      return;
+    }
     if (sleepSessionOnStart) {
       _audioOnly = true;
       _sleepSession = true;
@@ -586,6 +762,10 @@ class LiveRoomController extends ChangeNotifier {
     Settings.blockEmoteOnlyDanmaku,
     Settings.blockLongDanmaku,
     Settings.blockLongDanmakuLength,
+    Settings.danmakuColoredOnly,
+    Settings.danmakuMinUserLevel,
+    Settings.danmakuMinFansLevel,
+    Settings.filterDouyuSuspectedAutomatedMessages,
   ];
 
   Future<void> _reloadFilter() async {
@@ -605,6 +785,10 @@ class LiveRoomController extends ChangeNotifier {
       blockEmoteOnly: settings.get(Settings.blockEmoteOnlyDanmaku),
       blockLong: settings.get(Settings.blockLongDanmaku),
       blockLongLength: settings.get(Settings.blockLongDanmakuLength),
+      coloredOnly: settings.get(Settings.danmakuColoredOnly),
+      minUserLevel: settings.get(Settings.danmakuMinUserLevel),
+      minFansLevel: settings.get(Settings.danmakuMinFansLevel),
+      filterSuspectedAutomated: settings.get(Settings.filterDouyuSuspectedAutomatedMessages),
     );
   }
 
@@ -613,6 +797,13 @@ class LiveRoomController extends ChangeNotifier {
   /// after a failed detail.
   Future<void> load({bool preservePause = false}) async {
     if (_disposed) return;
+    if (_archive case final archive?) {
+      final paused = session.state.status == PlaybackStatus.paused;
+      final at = archive.position;
+      await archive.open(archive.video?.id ?? _archiveSelection!.recording.id, start: at);
+      if (paused && !_disposed) await session.pause();
+      return;
+    }
     final epoch = ++_epoch;
     // G03.1: only the first load is the room's entry.
     if (_startupEpoch == null) {
@@ -738,7 +929,7 @@ class LiveRoomController extends ChangeNotifier {
       _historyRecorded = true;
       unawaited(_guard(() => store.history.record(_room, now: _now()), 'history'));
     }
-    unawaited(_syncDanmaku(force: true));
+    unawaited(_syncDanmaku());
     unawaited(_loadSuperChats(epoch));
   }
 
@@ -820,6 +1011,9 @@ class LiveRoomController extends ChangeNotifier {
     _notify();
     final quality = _qualities[playing];
     final startup = userChoice ? null : _takeStartup(epoch);
+    // Visitor chat may need its own browser/handshake. Start it alongside
+    // the first decoder open, rather than adding that cost after playback.
+    if (!userChoice) unawaited(_syncDanmaku(force: true));
     await session.open(
       PlaybackRequest(
         site: site.id,
@@ -925,6 +1119,16 @@ class LiveRoomController extends ChangeNotifier {
       mobile: false,
       defaultDesktop: settings.get(Settings.defaultDesktopVolume),
     );
+  }
+
+  /// Shared play action, including restarting a finished recording.
+  Future<void> togglePlayback() async {
+    final archive = _archive;
+    if (archive != null && session.state.status == PlaybackStatus.completed) {
+      await archive.open(archive.video?.id ?? _archiveSelection!.recording.id, start: Duration.zero);
+    } else {
+      await session.togglePlayPause();
+    }
   }
 
   /// The player's volume, 0 to 1.
@@ -1116,6 +1320,12 @@ class LiveRoomController extends ChangeNotifier {
   /// Plays quality [index] (3.x `setResolution(changeQuality)`); the old
   /// stream keeps playing until the new one resolves.
   Future<void> selectQuality(int index) async {
+    if (_archive case final archive?) {
+      if (index >= 0 && index < _qualities.length && !archive.busy) {
+        await archive.selectQuality('${_qualities[index].id}');
+      }
+      return;
+    }
     if (_switching || _switchingLine || index < 0 || index >= _qualities.length || index == _qualityIndex) return;
     if (_stage != RoomStage.playing) return;
     _switching = true;
@@ -1145,6 +1355,10 @@ class LiveRoomController extends ChangeNotifier {
   /// The retry button: the stream again when only playback failed, else the
   /// whole room.
   Future<void> retry() async {
+    if (isArchive) {
+      await load(preservePause: true);
+      return;
+    }
     if (_stage == RoomStage.playing && session.state.status == PlaybackStatus.error) {
       final failure = session.state.failure;
       if (failure != SourceFailureKind.terminal) {
@@ -1159,6 +1373,7 @@ class LiveRoomController extends ChangeNotifier {
   /// a room that comes on air starts playing, and a danmaku connection that
   /// ended (a broadcast ended and restarted, B-24) connects again.
   Future<void> refreshDetail() async {
+    if (isArchive) return;
     if (_disposed || _stage == RoomStage.loading) return;
     final epoch = _epoch;
     LiveRoom fetched;
@@ -1233,6 +1448,7 @@ class LiveRoomController extends ChangeNotifier {
   // ---- danmaku ----
 
   bool get _wantsDanmaku =>
+      !isArchive &&
       !_danmakuSuspended &&
       (store.settings.get(Settings.enableDanmakuDisplay) || store.settings.get(Settings.enablePipDanmaku));
 
@@ -1259,6 +1475,11 @@ class LiveRoomController extends ChangeNotifier {
 
   Future<void> _syncDanmaku({bool force = false}) async {
     if (_disposed) return;
+    if (isArchive) {
+      await danmaku.close();
+      _setChat(_archive?.supportsDanmaku == true ? ChatConnection.connected : ChatConnection.unsupported);
+      return;
+    }
     if (!_danmakuStage || !_wantsDanmaku || site.id == SiteIds.iptv) {
       _setChat(ChatConnection.idle);
       await danmaku.close();
@@ -1297,6 +1518,7 @@ class LiveRoomController extends ChangeNotifier {
   }
 
   void _onDanmaku(DanmakuEvent event) {
+    if (isArchive) return;
     if (_disposed) return;
     switch (event) {
       case DanmakuReady():
@@ -1333,16 +1555,19 @@ class LiveRoomController extends ChangeNotifier {
           if (masked
               ? _maskedChats == maskedChatsForExpiredLogin && _namedChats == 0
               : _namedChats == 1 && _maskedChats >= maskedChatsForExpiredLogin) {
+            if (masked && !_nameHintDismissed) {
+              _nameHintTimer ??= Timer(const Duration(seconds: 8), dismissNameHint);
+            }
             _notify();
           }
         }
         switch (_filter.judge(message)) {
           case DanmakuVerdict.shown:
             break;
-          case DanmakuVerdict.blocked:
+          case DanmakuVerdict.blocked || DanmakuVerdict.repeated || DanmakuVerdict.similar:
             blocked.add();
             return;
-          case DanmakuVerdict.duplicate || DanmakuVerdict.repeated || DanmakuVerdict.similar:
+          case DanmakuVerdict.duplicate:
             return;
         }
         chat.add(ChatLine.chat(message));
@@ -1590,8 +1815,19 @@ class LiveRoomController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _archiveGeneration++;
+    final archive = _archive;
+    archive?.removeListener(_archiveChanged);
+    unawaited(_archiveMessages?.cancel());
+    unawaited(_archiveClears?.cancel());
+    archive?.dispose();
+    _archiveRetirement = Future.wait<void>([
+      _archiveTransition.catchError((Object _) {}),
+      if (archive != null) archive.retirement,
+    ]).then((_) {});
     _disposed = true;
     _telemetry?.dispose();
+    _nameHintTimer?.cancel();
     _epoch++;
     _refreshTimer?.cancel();
     _superChatTimer?.cancel();

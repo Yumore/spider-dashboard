@@ -825,6 +825,14 @@ List<SettingsEntry> _build() {
       settings: [Settings.playbackHud],
       keywords: ['时间', '时钟', '网速', '常驻', 'clock', 'speed', 'HUD'],
     )
+    ..toggle(
+      'playback_line_details',
+      'playback_line_details',
+      Settings.playbackLineDetails,
+      AppIcons.settingsVideo,
+      desc: 'playback_line_details_desc',
+      keywords: ['线路', '编码', 'Raw', 'CDN', 'codec', 'line'],
+    )
     ..group = 'audio_settings'
     ..toggle(
       'audio_mixing',
@@ -900,6 +908,14 @@ List<SettingsEntry> _build() {
       when: _mobile,
     )
     ..toggle(
+      'show_cellular_warning',
+      'settings_cellular_warning',
+      Settings.showCellularWarning,
+      AppIcons.settingsCellularQuality,
+      desc: 'settings_cellular_warning_desc',
+      keywords: ['流量', '蜂窝', 'mobile data', 'cellular'],
+    )
+    ..toggle(
       'prefer_h264',
       'settings_prefer_h264',
       Settings.preferH264,
@@ -965,6 +981,14 @@ List<SettingsEntry> _build() {
       subpage: SettingsSubpage.portrait,
       desc: 'portrait_live_settings_desc',
       keywords: ['竖屏', 'portrait'],
+    )
+    ..toggle(
+      'live_play_wide_footer',
+      'enable_live_play_wide_footer',
+      Settings.livePlayWideFooter,
+      AppIcons.homeBottomBar,
+      desc: 'enable_live_play_wide_footer_subtitle',
+      keywords: ['底栏', '信息栏', '人数', '画质', '线路', '宽屏', '布局', 'footer', 'bottom bar'],
     )
     ..link(
       'audience',
@@ -1154,7 +1178,27 @@ List<SettingsEntry> _build() {
         Settings.blockLongDanmaku,
         Settings.blockLongDanmakuLength,
       ],
-      keywords: ['屏蔽', '关键词', '过滤', 'block', '相似', '刷屏', '斗鱼', '机器人', '正则', 'regex', '只有表情', '纯表情', '超长', '字数'],
+      keywords: [
+        '屏蔽',
+        '关键词',
+        '过滤',
+        'block',
+        '相似',
+        '刷屏',
+        '斗鱼',
+        '机器人',
+        '正则',
+        'regex',
+        '只有表情',
+        '纯表情',
+        '超长',
+        '字数',
+        '彩色',
+        '用户等级',
+        '粉丝牌等级',
+        'level',
+        'color',
+      ],
     )
     // ---- portrait streams (U.6c, a page of the video page) ----
     ..subpage = SettingsSubpage.portrait
@@ -1242,6 +1286,15 @@ List<SettingsEntry> _build() {
       desc: 'portrait_pip_follow_source_desc',
       keywords: ['竖屏', 'portrait', '小窗'],
       when: _android,
+    )
+    ..choice<String>(
+      'portrait_chat_layout',
+      'portrait_fullscreen_danmaku_layout',
+      Settings.portraitFullscreenDanmakuLayout,
+      AppIcons.portraitDanmaku,
+      () => _keyed({'rolling': 'portrait_danmaku_rolling', 'stacked': 'portrait_danmaku_stacked'}),
+      desc: 'portrait_fullscreen_danmaku_layout_desc',
+      keywords: ['竖屏', 'portrait', '弹幕', '上滚', 'chat'],
     )
     ..choice<String>(
       'portrait_danmaku',
@@ -2214,6 +2267,7 @@ const List<Setting<Object>> portraitSettings = [
   Settings.portraitFullscreenDisplayMode,
   Settings.portraitPipFollowSource,
   Settings.portraitDanmakuMode,
+  Settings.portraitFullscreenDanmakuLayout,
   Settings.rememberPortraitRoomOverride,
   Settings.portraitFullscreenSwipeSwitch,
   Settings.showPortraitDiagnostics,
