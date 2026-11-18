@@ -1141,7 +1141,7 @@ packages:
       path: "packages/novel_sound"
       relative: true
     source: path
-    version: "1.0.204+209"
+    version: "1.0.205+210"
   get:
     dependency: transitive
     description:
@@ -1172,7 +1172,7 @@ packages:
       path: "packages/guomu"
       relative: true
     source: path
-    version: "1.4.3+8"
+    version: "1.4.6+11"
   hive:
     dependency: transitive
     description:
@@ -2215,7 +2215,7 @@ packages:
       path: "packages/pure_live/app"
       relative: true
     source: path
-    version: "5.6.0+5133"
+    version: "5.6.5+5144"
   pure_live_qr:
     dependency: transitive
     description:
@@ -2622,7 +2622,7 @@ packages:
       path: "packages/simple_live/simple_live_tv_app"
       relative: true
     source: path
-    version: "1.8.18+10818"
+    version: "1.8.21+10821"
   skeletonizer:
     dependency: transitive
     description:
