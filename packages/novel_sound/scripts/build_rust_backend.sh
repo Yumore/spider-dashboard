@@ -33,6 +33,32 @@ FLUTTER_APP_DIR="${NOVEL_SOUND_FLUTTER_ROOT:-$APP_DIR}"
 MANIFEST="$APP_DIR/rust/Cargo.toml"
 PINNED_NDK_VERSION="28.2.13676358"
 
+# Rustup installs Android standard libraries per toolchain. Prefer its shims
+# over a system rustc/cargo (for example, a MacPorts compiler) when available.
+# This also makes the target check and the subsequent Cargo build use the same
+# toolchain selected for this project directory.
+CARGO_HOME_DIR="${CARGO_HOME:-${HOME:-}/.cargo}"
+RUSTUP_BIN=""
+if [ -x "$CARGO_HOME_DIR/bin/rustup" ]; then
+  RUSTUP_BIN="$CARGO_HOME_DIR/bin/rustup"
+elif command -v rustup >/dev/null 2>&1; then
+  RUSTUP_BIN="$(command -v rustup)"
+fi
+if [ -n "$RUSTUP_BIN" ]; then
+  export PATH="$(dirname "$RUSTUP_BIN"):$PATH"
+  ACTIVE_RUST_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-$("$RUSTUP_BIN" show active-toolchain 2>/dev/null | awk 'NR == 1 { print $1 }')}"
+  if [ -n "$ACTIVE_RUST_TOOLCHAIN" ]; then
+    export RUSTUP_TOOLCHAIN="$ACTIVE_RUST_TOOLCHAIN"
+    for rust_target in aarch64-linux-android armv7-linux-androideabi; do
+      if ! "$RUSTUP_BIN" target list --toolchain "$ACTIVE_RUST_TOOLCHAIN" --installed | grep -Fqx "$rust_target"; then
+        echo "错误：Rustup 工具链 $ACTIVE_RUST_TOOLCHAIN 缺少 Android 目标 $rust_target。" >&2
+        echo "请运行：rustup target add --toolchain $ACTIVE_RUST_TOOLCHAIN $rust_target" >&2
+        exit 1
+      fi
+    done
+  fi
+fi
+
 SKIP_CODEGEN=0
 HOST_LIB=0
 PROFILE=release

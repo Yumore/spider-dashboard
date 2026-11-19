@@ -67,6 +67,7 @@ android {
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
+            proguardFiles += file('proguard-rules.pro')
         }
     }
 
@@ -112,6 +113,7 @@ dependencies {
     implementation 'commons-net:commons-net:3.12.0'
     implementation 'com.hierynomus:smbj:0.14.0'
     implementation 'org.glassfish:javax.el:3.0.1-b12'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
     // Expose the FFmpegKit API supplied at runtime by the Flutter plugin so
     // the short-drama platform bridge can use the same native implementation.

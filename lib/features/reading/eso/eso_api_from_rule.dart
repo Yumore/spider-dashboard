@@ -215,7 +215,7 @@ class EsoApiFromRule implements EsoApi {
 
   /// 目录：`chapterUrl == "正文"` 时单章直出；给了 page 走增量翻页，否则循环拉全量。
   @override
-  Future<List<EsoChapterItem>> chapter(final String lastResult, [int? page]) async {
+  Future<List<EsoChapterItem>> chapter(String lastResult, [int? page]) async {
     if (rule.chapterUrl == '正文') {
       return <EsoChapterItem>[EsoChapterItem(url: lastResult, name: '正文')];
     }
@@ -389,7 +389,7 @@ class EsoApiFromRule implements EsoApi {
   }
 
   @override
-  Future<List<String>> content(final String lastResult) async {
+  Future<List<String>> content(String lastResult) async {
     EsoApi.contentUrl = null;
     final result = <String>[];
     final hasNextUrlRule = rule.contentNextUrl.isNotEmpty;

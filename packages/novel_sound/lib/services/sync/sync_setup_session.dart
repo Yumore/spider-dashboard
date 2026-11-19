@@ -149,12 +149,12 @@ class _SetupSession implements SyncSetupSession {
       final byId = <String, SyncFolder>{};
       for (final entry in xml.findAllElements(
         'response',
-        namespaceUri: 'DAV:',
+        namespace: 'DAV:',
       )) {
-        if (entry.findAllElements('collection', namespaceUri: 'DAV:').isEmpty) {
+        if (entry.findAllElements('collection', namespace: 'DAV:').isEmpty) {
           continue;
         }
-        final href = entry.getElement('href', namespaceUri: 'DAV:')?.innerText;
+        final href = entry.getElement('href', namespace: 'DAV:')?.innerText;
         if (href == null) continue;
         final target = uri.resolve(href).normalizePath();
         if (target.userInfo.isNotEmpty ||

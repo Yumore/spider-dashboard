@@ -57,7 +57,7 @@ dependencies:
 
   canvas_danmaku: ^0.3.3
   webdav_client: ^1.2.2
-  tray_manager: ^0.8.0
+  tray_manager: ^0.9.0
   dlna_dart: ^0.0.8
   logger: ^2.6.2
   flutter_rating_bar: ^4.0.1
