@@ -67,9 +67,12 @@ dependencies:
   # Android/iOS/macOS/Linux 的播放库会一起进包（APK 多出 ~11 MB）。
   media_kit_libs_windows_video: 1.0.11
   media_kit_libs_linux: 1.2.1
+  media_kit_libs_ios_video: 1.1.4
+  wakelock_plus: ^1.5.2
   file_selector: ^1.1.0
   flutter_tts: ^4.2.5
-  webview_windows: ^0.4.0
+  webview_windows:
+    path: third_party/webview_windows
   window_manager: ^0.5.1
   screen_retriever: ^0.4.0
   smtc_windows: ^1.1.0

@@ -19,6 +19,12 @@
 		9DA8B959D786925F9B7B4ABD /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0180ACCC4EC49AD35306994D /* Pods_Runner.framework */; };
 		CC8B02B139B3689E1A004F8A /* GuomuLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F83E22900DF49608B070A39 /* GuomuLiveActivity.swift */; };
 		E26B060383462FD871651673 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1B24334944EBBC279343421 /* WidgetKit.framework */; };
+		39F2E805B516D5AB548816B0 /* NovelSoundSecureKeyBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AEE6F07676F4D6167C335D2 /* NovelSoundSecureKeyBridge.swift */; };
+		740B9C8FBCA1B89F7A6190A5 /* NovelSoundFanqieLoginBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0B36295C84C73847C2052B0 /* NovelSoundFanqieLoginBridge.swift */; };
+		3F5709B4498353632E968868 /* NovelSoundIosFilesBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11601F8F7AA4BF24127802BA /* NovelSoundIosFilesBridge.swift */; };
+		D3C934F531710127DF99E20B /* NovelSoundSystemTtsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA40680A4163D0E0568B9BB1 /* NovelSoundSystemTtsBridge.swift */; };
+		18973D5811AD13108BE2D5AF /* NovelSoundAudioSessionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8EF7811C3CA0D79ED11F3D4 /* NovelSoundAudioSessionBridge.swift */; };
+		EE6E82F335BC39AD58ABB7C8 /* NovelSoundAudioSessionEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA981B3249B4D898096591B5 /* NovelSoundAudioSessionEvents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +83,12 @@
 		B28E2021C33F5274377A2708 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		E1B24334944EBBC279343421 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		FAFC644F90E146C1A1E45F58 /* GuomuWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GuomuWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0AEE6F07676F4D6167C335D2 /* NovelSoundSecureKeyBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSoundSecureKeyBridge.swift; sourceTree = "<group>"; };
+		F0B36295C84C73847C2052B0 /* NovelSoundFanqieLoginBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSoundFanqieLoginBridge.swift; sourceTree = "<group>"; };
+		11601F8F7AA4BF24127802BA /* NovelSoundIosFilesBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSoundIosFilesBridge.swift; sourceTree = "<group>"; };
+		CA40680A4163D0E0568B9BB1 /* NovelSoundSystemTtsBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSoundSystemTtsBridge.swift; sourceTree = "<group>"; };
+		E8EF7811C3CA0D79ED11F3D4 /* NovelSoundAudioSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSoundAudioSessionBridge.swift; sourceTree = "<group>"; };
+		BA981B3249B4D898096591B5 /* NovelSoundAudioSessionEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovelSoundAudioSessionEvents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -164,6 +176,12 @@
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
+				BA981B3249B4D898096591B5 /* NovelSoundAudioSessionEvents.swift */,
+				0AEE6F07676F4D6167C335D2 /* NovelSoundSecureKeyBridge.swift */,
+				F0B36295C84C73847C2052B0 /* NovelSoundFanqieLoginBridge.swift */,
+				11601F8F7AA4BF24127802BA /* NovelSoundIosFilesBridge.swift */,
+				CA40680A4163D0E0568B9BB1 /* NovelSoundSystemTtsBridge.swift */,
+				E8EF7811C3CA0D79ED11F3D4 /* NovelSoundAudioSessionBridge.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -427,6 +445,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
+				EE6E82F335BC39AD58ABB7C8 /* NovelSoundAudioSessionEvents.swift in Sources */,
+				39F2E805B516D5AB548816B0 /* NovelSoundSecureKeyBridge.swift in Sources */,
+				740B9C8FBCA1B89F7A6190A5 /* NovelSoundFanqieLoginBridge.swift in Sources */,
+				3F5709B4498353632E968868 /* NovelSoundIosFilesBridge.swift in Sources */,
+				D3C934F531710127DF99E20B /* NovelSoundSystemTtsBridge.swift in Sources */,
+				18973D5811AD13108BE2D5AF /* NovelSoundAudioSessionBridge.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

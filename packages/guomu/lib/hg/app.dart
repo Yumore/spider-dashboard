@@ -37,10 +37,13 @@ class GuomuApp extends StatelessWidget {
         ),
         ProxyProvider<SourceController, HgApi>(
           update: (context, source, previous) {
-            previous?.setBaseUrl(source.baseUrl);
+            previous?.setSourceRouter(source);
             return previous ??
-                (HgApi(baseUrl: source.baseUrl, preferences: preferences)
-                  ..warmStartup());
+                (HgApi(
+                  baseUrl: source.baseUrl,
+                  preferences: preferences,
+                  sourceRouter: source,
+                )..warmStartup());
           },
         ),
         ChangeNotifierProvider<AuthController>(
@@ -103,7 +106,7 @@ class _GuomuMaterialApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeMode = context.watch<ThemeController>().mode;
-    final source = context.watch<SourceController>();
+    context.watch<SourceController>();
     return MaterialApp(
       title: '果幕 · 黄果短剧',
       debugShowCheckedModeBanner: false,
@@ -129,7 +132,7 @@ class _GuomuMaterialApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: RootShell(key: ValueKey(source.baseUrl), onClose: onClose),
+      home: RootShell(onClose: onClose),
     );
   }
 }

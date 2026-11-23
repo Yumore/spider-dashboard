@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
@@ -17,11 +18,27 @@ class HgVideoController extends ChangeNotifier {
   final VoidCallback? onEnded;
 
   VideoPlayerController? _controller;
+  VideoPlayerController? _pendingController;
+  final Completer<void> _cancelInitialization = Completer<void>();
   bool _ended = false;
   bool _disposed = false;
+  bool _seeking = false;
 
   bool get isReady => _controller?.value.isInitialized ?? false;
   bool get isPlaying => _controller?.value.isPlaying ?? false;
+  bool get isBuffering => _controller?.value.isBuffering ?? false;
+
+  Duration get bufferedPosition {
+    final value = _controller?.value;
+    if (value == null) return Duration.zero;
+    for (final range in value.buffered) {
+      if (range.start <= value.position && range.end >= value.position) {
+        return range.end;
+      }
+    }
+    return value.position;
+  }
+
   bool get hasError => _controller?.value.hasError ?? false;
   String? get errorDescription => _controller?.value.errorDescription;
 
@@ -45,6 +62,7 @@ class HgVideoController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    if (_disposed) return;
     final local = localPath?.trim() ?? '';
     final controller = local.isNotEmpty
         ? VideoPlayerController.file(
@@ -56,11 +74,20 @@ class HgVideoController extends ChangeNotifier {
             httpHeaders: headers,
             videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
           );
-    await controller.initialize();
-    await controller.setLooping(false);
-    controller.addListener(_handleVideoValue);
-    _controller = controller;
-    notifyListeners();
+    _pendingController = controller;
+    try {
+      await Future.any([controller.initialize(), _cancelInitialization.future]);
+      if (!_disposed) await controller.setLooping(false);
+      if (_disposed) return;
+      controller.addListener(_handleVideoValue);
+      _controller = controller;
+      notifyListeners();
+    } catch (_) {
+      if (!_disposed) await controller.dispose();
+      rethrow;
+    } finally {
+      _pendingController = null;
+    }
   }
 
   void _handleVideoValue() {
@@ -68,9 +95,10 @@ class HgVideoController extends ChangeNotifier {
     final value = _controller?.value;
     if (value != null &&
         value.isInitialized &&
+        !_seeking &&
         !_ended &&
         value.duration > Duration.zero &&
-        value.position >= value.duration - const Duration(milliseconds: 180)) {
+        value.isCompleted) {
       _ended = true;
       onEnded?.call();
     }
@@ -112,7 +140,14 @@ class HgVideoController extends ChangeNotifier {
         : (duration > Duration.zero && position > duration
               ? duration
               : position);
-    await controller.seekTo(target);
+    _seeking = true;
+    if (target < duration) _ended = false;
+    try {
+      await controller.seekTo(target);
+    } finally {
+      _seeking = false;
+      _handleVideoValue();
+    }
   }
 
   Widget buildView() {
@@ -138,9 +173,17 @@ class HgVideoController extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
+    _cancelInitialization.complete();
+    final pending = _pendingController;
+    if (pending != null && !identical(pending, _controller)) {
+      unawaited(pending.dispose());
+    }
+    _pendingController = null;
     _controller?.removeListener(_handleVideoValue);
     _controller?.dispose();
+    _controller = null;
     super.dispose();
   }
 }

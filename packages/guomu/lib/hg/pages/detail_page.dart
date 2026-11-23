@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api/hg_api.dart';
+import '../app_flags.dart';
 import '../auth/app_controllers.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
@@ -18,6 +21,7 @@ import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/hg_share_sheet.dart';
 import '../widgets/secure_cover.dart';
 import 'creator_page.dart';
+import 'downloads_page.dart';
 import 'login_sheet.dart';
 import 'short_video_page.dart';
 import 'tag_feed_page.dart';
@@ -30,12 +34,14 @@ class DramaDetailPage extends StatefulWidget {
     this.preloaded,
     this.feedIds = const [],
     this.feedIndex = 0,
+    this.heroTag,
   });
 
   final int videoId;
   final HgVideoCard? preloaded;
   final List<int> feedIds;
   final int feedIndex;
+  final Object? heroTag;
 
   @override
   State<DramaDetailPage> createState() => _DramaDetailPageState();
@@ -47,6 +53,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
   bool _descriptionExpanded = false;
   HgPlaylistItem? _history;
   Object? _error;
+  bool _addingDownload = false;
 
   @override
   void initState() {
@@ -76,6 +83,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
   }
 
   Future<void> _play([int? episode]) async {
+    HapticFeedback.selectionClick();
     final ids = widget.feedIds.isEmpty ? [widget.videoId] : widget.feedIds;
     final safeIndex = ids.indexOf(widget.videoId);
     await Navigator.of(context).push(
@@ -140,10 +148,6 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(sheetContext),
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                    ),
                   ],
                 ),
               ),
@@ -168,14 +172,6 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                 onTap: () {
                   Navigator.pop(sheetContext);
                   unawaited(_load());
-                },
-              ),
-              _DetailAction(
-                icon: Icons.download_for_offline_outlined,
-                title: '缓存全集',
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  unawaited(_cacheAllDrama());
                 },
               ),
               _DetailAction(
@@ -209,25 +205,56 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
   }
 
   Future<void> _cacheAllDrama() async {
+    if (_addingDownload) return;
+    if (kIsWeb) {
+      final download = await showHgConfirmSheet(
+        context,
+        title: '离线缓存需要果幕 App',
+        message: '网页预览仅展示界面。请下载安装包后缓存短剧，离线观看。',
+        confirmLabel: '下载安装包',
+        cancelLabel: '继续浏览',
+      );
+      if (download) {
+        await launchUrl(
+          Uri.parse(kHgLatestReleaseUrl),
+          mode: LaunchMode.externalApplication,
+        );
+      }
+      return;
+    }
     final detail = _detail;
     if (detail == null) {
       showHgSnack(context, '详情还在加载，请稍后再试');
       return;
     }
-    await HgNotificationService.requestPermissions();
-    if (!mounted) return;
     final manager = context.read<HgDownloadManager>();
-    await manager.startDramaDownload(detail);
-    if (mounted) {
-      showHgSnack(context, '已加入缓存队列，可在“设置 → 我的下载”查看进度');
+    final existing = manager.taskFor(detail.id);
+    if (existing != null) {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const DownloadsPage()));
+      return;
+    }
+    setState(() => _addingDownload = true);
+    try {
+      await HgNotificationService.requestPermissions();
+      if (!mounted) return;
+      await manager.startDramaDownload(detail);
+      if (mounted) showHgSnack(context, '已加入下载队列');
+    } catch (error) {
+      if (mounted) showHgSnack(context, cleanError(error));
+    } finally {
+      if (mounted) setState(() => _addingDownload = false);
     }
   }
 
   Future<void> _toggleFavorite() async {
-    if (!await ensureLoggedIn(context) || !mounted) return;
-    HapticFeedback.mediumImpact();
     try {
-      await context.read<AuthController>().toggleFavorite(widget.videoId);
+      await runAuthenticated(context, () async {
+        HapticFeedback.mediumImpact();
+        await context.read<AuthController>().toggleFavorite(widget.videoId);
+        return true;
+      });
     } catch (error) {
       if (mounted) showHgSnack(context, cleanError(error));
     }
@@ -246,42 +273,65 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
     return Scaffold(
       bottomNavigationBar: SafeArea(
         top: false,
+        minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          key: const ValueKey('hg-detail-action-dock'),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-              ),
+            color: theme.colorScheme.surface.withValues(alpha: 0.98),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.28),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.32 : 0.08,
+                ),
+                blurRadius: 26,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Row(
             children: [
               OutlinedButton.icon(
+                key: const ValueKey('hg-detail-follow'),
                 onPressed: _toggleFavorite,
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(56, 52),
+                  minimumSize: const Size(56, 50),
                   padding: const EdgeInsets.symmetric(horizontal: 15),
                   foregroundColor: favorite
                       ? HgColors.orange
                       : theme.colorScheme.onSurface,
+                  side: BorderSide(
+                    color: favorite
+                        ? HgColors.orange.withValues(alpha: 0.45)
+                        : theme.colorScheme.outlineVariant,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  overlayColor: Colors.transparent,
                 ),
                 icon: Icon(
                   favorite ? Icons.star_rounded : Icons.star_border_rounded,
                 ),
                 label: Text(favorite ? '已追剧' : '追剧'),
               ),
-              const SizedBox(width: 4),
-              IconButton(
-                onPressed: detail == null ? null : _cacheAllDrama,
-                tooltip: '缓存全集',
-                icon: const Icon(Icons.download_for_offline_outlined),
-              ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 12),
               Expanded(
                 child: FilledButton.icon(
+                  key: const ValueKey('hg-detail-play'),
                   onPressed: _loading || detail == null ? null : _play,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 50),
+                    backgroundColor: HgColors.orange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                   icon: const Icon(Icons.play_arrow_rounded, size: 22),
                   label: Text(
                     detail == null
@@ -289,6 +339,8 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                         : (_history?.lastEpisode ?? 0) > 0
                         ? '继续观看 · 第 ${_history!.lastEpisode} 集'
                         : '立即播放 · 第 1 集',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -347,7 +399,11 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    HgCoverImage(url: cover, title: title),
+                    HgCoverImage(
+                      url: cover,
+                      title: title,
+                      heroTag: widget.heroTag,
+                    ),
                     const DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -415,7 +471,11 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.34),
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -600,18 +660,57 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                       const SizedBox(height: 20),
                       Row(
                         children: [
-                          Text('选集', style: theme.textTheme.titleLarge),
-                          const Spacer(),
-                          Text(
-                            episodes.isEmpty
-                                ? '暂未返回选集'
-                                : '共 ${episodes.length} 集',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.43,
-                              ),
-                              fontSize: 11,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('选集', style: theme.textTheme.titleLarge),
+                                const SizedBox(height: 3),
+                                Text(
+                                  episodes.isEmpty
+                                      ? '暂未返回选集'
+                                      : '共 ${episodes.length} 集',
+                                  style: TextStyle(
+                                    color: context.hgMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          Consumer<HgDownloadManager>(
+                            builder: (context, manager, _) {
+                              final task = manager.taskFor(widget.videoId);
+                              final label = _addingDownload
+                                  ? '正在加入'
+                                  : task == null
+                                  ? '缓存全集'
+                                  : task.isComplete
+                                  ? '已缓存'
+                                  : task.isDownloading
+                                  ? '正在缓存'
+                                  : '查看下载';
+                              return TextButton.icon(
+                                onPressed: _addingDownload
+                                    ? null
+                                    : _cacheAllDrama,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: context.hgOnSurface,
+                                  overlayColor: Colors.transparent,
+                                  minimumSize: const Size(0, 44),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                                icon: Icon(
+                                  task?.isComplete == true
+                                      ? Icons.download_done_rounded
+                                      : Icons.download_rounded,
+                                  size: 19,
+                                ),
+                                label: Text(label),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -719,7 +818,7 @@ class _DetailAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effective = color ?? HgColors.ink;
+    final effective = color ?? Theme.of(context).colorScheme.onSurface;
     return HgInkWell(
       onTap: onTap,
       child: Padding(

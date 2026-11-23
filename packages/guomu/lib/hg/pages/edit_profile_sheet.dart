@@ -8,6 +8,7 @@ import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/secure_cover.dart';
+import 'login_sheet.dart';
 
 const List<String> kHgAvatarPalette = [
   '#4FB37A',
@@ -84,12 +85,15 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       _error = null;
     });
     try {
-      await context.read<AuthController>().updateProfile(
-        nickname: _nickname.text,
-        sign: _sign.text,
-        avatarColor: _avatarColor,
-      );
-      if (mounted) Navigator.of(context).pop(true);
+      final saved = await runAuthenticated(context, () async {
+        await context.read<AuthController>().updateProfile(
+          nickname: _nickname.text,
+          sign: _sign.text,
+          avatarColor: _avatarColor,
+        );
+        return true;
+      });
+      if (saved == true && mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) setState(() => _error = cleanError(error));
     } finally {
@@ -99,198 +103,175 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: context.hgSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 9, 20, 18),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Expanded(child: SizedBox()),
-                      IconButton(
-                        onPressed: () => Navigator.maybePop(context),
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: context.hgMuted,
-                          size: 22,
-                        ),
-                      ),
-                    ],
+    return Container(
+      decoration: BoxDecoration(
+        color: context.hgSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 9, 20, 18),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 20),
+                Text(
+                  '编辑资料',
+                  style: TextStyle(
+                    color: context.hgOnSurface,
+                    fontSize: 25,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
                   ),
-                  Text(
-                    '编辑资料',
-                    style: TextStyle(
-                      color: context.hgOnSurface,
-                      fontSize: 25,
-                      height: 1.2,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
-                    ),
+                ),
+                const SizedBox(height: 18),
+                Center(
+                  child: HgAvatar(
+                    name: _nickname.text,
+                    url: widget.user.avatar,
+                    size: 80,
+                    color: colorFromHex(_avatarColor),
                   ),
-                  const SizedBox(height: 18),
-                  Center(
-                    child: HgAvatar(
-                      name: _nickname.text,
-                      url: widget.user.avatar,
-                      size: 80,
-                      color: colorFromHex(_avatarColor),
-                    ),
+                ),
+                const SizedBox(height: 14),
+                Center(
+                  child: Text(
+                    '选择官方头像色板',
+                    style: TextStyle(color: context.hgMuted, fontSize: 11.5),
                   ),
-                  const SizedBox(height: 14),
-                  Center(
-                    child: Text(
-                      '选择官方头像色板',
-                      style: TextStyle(color: context.hgMuted, fontSize: 11.5),
-                    ),
+                ),
+                const SizedBox(height: 12),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 8,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
-                  const SizedBox(height: 12),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 8,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    itemCount: kHgAvatarPalette.length,
-                    itemBuilder: (context, index) {
-                      final colorHex = kHgAvatarPalette[index];
-                      final selected = colorHex == _avatarColor;
-                      return GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _avatarColor = colorHex);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          decoration: BoxDecoration(
-                            color: colorFromHex(colorHex),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: selected
-                                  ? HgColors.ink
-                                  : Colors.transparent,
-                              width: 2.5,
-                            ),
-                            boxShadow: selected
-                                ? const [
-                                    BoxShadow(
-                                      color: Color(0x22000000),
-                                      blurRadius: 9,
-                                      offset: Offset(0, 3),
-                                    ),
-                                  ]
-                                : null,
+                  itemCount: kHgAvatarPalette.length,
+                  itemBuilder: (context, index) {
+                    final colorHex = kHgAvatarPalette[index];
+                    final selected = colorHex == _avatarColor;
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _avatarColor = colorHex);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        decoration: BoxDecoration(
+                          color: colorFromHex(colorHex),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selected ? HgColors.ink : Colors.transparent,
+                            width: 2.5,
                           ),
-                          child: selected
-                              ? const Icon(
-                                  Icons.check_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                )
+                          boxShadow: selected
+                              ? const [
+                                  BoxShadow(
+                                    color: Color(0x22000000),
+                                    blurRadius: 9,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ]
                               : null,
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  const _EditLabel('昵称'),
-                  const SizedBox(height: 7),
-                  TextFormField(
-                    controller: _nickname,
-                    maxLength: 20,
-                    onChanged: (_) => setState(() {}),
-                    textInputAction: TextInputAction.next,
-                    decoration: _editDecoration(
-                      context: context,
-                      hint: '请输入昵称',
-                    ),
-                    validator: (value) {
-                      final text = value?.trim() ?? '';
-                      if (text.isEmpty) return '请输入昵称';
-                      if (text.length > 20) return '昵称不能超过 20 个字符';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 4),
-                  const _EditLabel('个性签名'),
-                  const SizedBox(height: 7),
-                  TextFormField(
-                    controller: _sign,
-                    maxLength: 100,
-                    maxLines: 3,
-                    textInputAction: TextInputAction.done,
-                    decoration: _editDecoration(
-                      context: context,
-                      hint: '写一句介绍，可不填',
-                    ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(11),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 48,
-                    child: FilledButton(
-                      onPressed: _saving ? null : _save,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: context.hgOnSurface,
-                        foregroundColor: context.hgSurface,
-                        disabledBackgroundColor: context.hgMuted.withValues(
-                          alpha: 0.38,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                      ),
-                      child: _saving
-                          ? const SizedBox(
-                              width: 19,
-                              height: 19,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
+                        child: selected
+                            ? const Icon(
+                                Icons.check_rounded,
                                 color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              '保存资料',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                                size: 18,
+                              )
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                const _EditLabel('昵称'),
+                const SizedBox(height: 7),
+                TextFormField(
+                  controller: _nickname,
+                  maxLength: 20,
+                  onChanged: (_) => setState(() {}),
+                  textInputAction: TextInputAction.next,
+                  decoration: _editDecoration(context: context, hint: '请输入昵称'),
+                  validator: (value) {
+                    final text = value?.trim() ?? '';
+                    if (text.isEmpty) return '请输入昵称';
+                    if (text.length > 20) return '昵称不能超过 20 个字符';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 4),
+                const _EditLabel('个性签名'),
+                const SizedBox(height: 7),
+                TextFormField(
+                  controller: _sign,
+                  maxLength: 100,
+                  maxLines: 3,
+                  textInputAction: TextInputAction.done,
+                  decoration: _editDecoration(
+                    context: context,
+                    hint: '写一句介绍，可不填',
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
-              ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _saving ? null : _save,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: context.hgOnSurface,
+                      foregroundColor: context.hgSurface,
+                      disabledBackgroundColor: context.hgMuted.withValues(
+                        alpha: 0.38,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                    ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 19,
+                            height: 19,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            '保存资料',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

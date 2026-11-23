@@ -110,10 +110,11 @@ class _PlayerInfoSheetState extends State<_PlayerInfoSheet> {
                 const SizedBox(width: 8),
                 FilledButton(
                   onPressed: () async {
-                    final loggedIn = await ensureLoggedIn(context);
-                    if (!context.mounted || !loggedIn) return;
                     try {
-                      await auth.toggleFavorite(widget.detail.id);
+                      await runAuthenticated(context, () async {
+                        await auth.toggleFavorite(widget.detail.id);
+                        return true;
+                      });
                     } catch (error) {
                       if (context.mounted) {
                         showHgSnack(context, cleanError(error));

@@ -71,7 +71,11 @@ class HgDownloadTask {
   final int lastKnownEpisode;
   final String updatedAt;
 
-  bool get isDownloading => state == '下载中' || state == '检查更新';
+  bool get isDownloading =>
+      state.startsWith('下载中') ||
+      state == '检查更新' ||
+      state == '排队中' ||
+      state == '等待恢复';
   bool get isComplete =>
       totalEpisodes > 0 && episodes.length >= totalEpisodes && !isDownloading;
   int get downloadedBytes =>

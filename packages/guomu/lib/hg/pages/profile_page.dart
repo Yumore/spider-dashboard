@@ -8,6 +8,7 @@ import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../utils/hg_local_history.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_pressable.dart';
 import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'account_sheet.dart';
@@ -15,7 +16,6 @@ import 'login_sheet.dart';
 import 'settings_page.dart';
 import 'short_video_page.dart';
 import 'user_activity_pages.dart';
-import '../widgets/hg_pressable.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -253,15 +253,14 @@ class _ProfilePageState extends State<ProfilePage> {
             if (auth.isLoggedIn)
               SliverToBoxAdapter(
                 child: _QuickActions(
+                  selected: _tab,
                   onCollections: () => _openTab(0),
                   onHistory: () => _openTab(1),
                   onLikes: () => _openTab(2),
                 ),
               )
             else
-              SliverToBoxAdapter(
-                child: _GuestBenefits(onLogin: () => showLoginSheet(context)),
-              ),
+              SliverToBoxAdapter(child: const _GuestBenefits()),
             if (auth.isLoggedIn) ...[
               SliverToBoxAdapter(
                 key: _libraryKey,
@@ -299,21 +298,27 @@ class _ProfilePageState extends State<ProfilePage> {
             1 => '还没有观看记录',
             _ => '还没有点赞内容',
           },
-          message: '看过的短剧会自动同步到这里。',
+          message: switch (_tab) {
+            0 => '追剧后会显示在这里。',
+            1 => '播放过的短剧会记录在这里。',
+            _ => '点赞过的短剧会显示在这里。',
+          },
         ),
       );
     }
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
       sliver: SliverGrid.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
+        key: const ValueKey('hg-profile-library-grid'),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 140,
           crossAxisSpacing: 10,
-          mainAxisSpacing: 16,
+          mainAxisSpacing: 18,
           childAspectRatio: 0.59,
         ),
         itemCount: items.length,
         itemBuilder: (context, index) => _LibraryCard(
+          key: ValueKey('hg-profile-library-card-${items[index].dramaId}'),
           item: items[index],
           onTap: () => _openItem(items[index]),
         ),
@@ -390,13 +395,20 @@ class _ProfileHeader extends StatelessWidget {
                 const Spacer(),
                 if (isLoggedIn) ...[
                   _HeaderIcon(
+                    key: const ValueKey('hg-profile-messages'),
                     icon: Icons.mail_outline_rounded,
                     badge: messageCount,
                     onTap: onMessage,
+                    semanticLabel: '消息',
                   ),
                   const SizedBox(width: 6),
                 ],
-                _HeaderIcon(icon: Icons.settings_outlined, onTap: onSettings),
+                _HeaderIcon(
+                  key: const ValueKey('hg-profile-settings'),
+                  icon: Icons.settings_outlined,
+                  onTap: onSettings,
+                  semanticLabel: '设置',
+                ),
               ],
             ),
           ),
@@ -405,13 +417,55 @@ class _ProfileHeader extends StatelessWidget {
           else ...[
             Row(
               children: [
-                GestureDetector(
+                HgPressable(
+                  key: const ValueKey('hg-profile-avatar'),
+                  haptic: true,
+                  semanticLabel: '${user!.nickname}，编辑资料',
+                  borderRadius: BorderRadius.circular(36),
+                  pressedOpacity: 0.82,
                   onTap: onAccountAction,
-                  child: HgAvatar(
-                    name: user!.nickname,
-                    url: user!.avatar,
-                    size: 72,
-                    color: colorFromHex(user!.avatarColor),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: context.hgLine.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        child: HgAvatar(
+                          name: user!.nickname,
+                          url: user!.avatar,
+                          size: 66,
+                          color: colorFromHex(user!.avatarColor),
+                        ),
+                      ),
+                      Positioned(
+                        right: -1,
+                        bottom: -1,
+                        child: Container(
+                          width: 23,
+                          height: 23,
+                          decoration: BoxDecoration(
+                            color: HgColors.orange,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: context.hgSurface,
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.edit_rounded,
+                            color: Colors.white,
+                            size: 11,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 15),
@@ -485,10 +539,17 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _HeaderIcon extends StatelessWidget {
-  const _HeaderIcon({required this.icon, required this.onTap, this.badge = 0});
+  const _HeaderIcon({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    required this.semanticLabel,
+    this.badge = 0,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
+  final String semanticLabel;
   final int badge;
 
   @override
@@ -496,17 +557,21 @@ class _HeaderIcon extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Material(
-          color: context.hgSurface.withValues(alpha: 0.72),
-          shape: const CircleBorder(),
-          child: HgInkWell(
-            onTap: onTap,
-            customBorder: const CircleBorder(),
-            child: SizedBox(
-              width: 38,
-              height: 38,
-              child: Icon(icon, color: context.hgOnSurface, size: 21),
+        HgPressable(
+          haptic: true,
+          semanticLabel: semanticLabel,
+          borderRadius: BorderRadius.circular(19),
+          pressedOpacity: 0.76,
+          onTap: onTap,
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: context.hgSurface.withValues(alpha: 0.72),
+              shape: BoxShape.circle,
+              border: Border.all(color: context.hgLine.withValues(alpha: 0.55)),
             ),
+            child: Icon(icon, color: context.hgOnSurface, size: 21),
           ),
         ),
         if (badge > 0)
@@ -580,19 +645,30 @@ class _GuestProfile extends StatelessWidget {
             ],
           ),
         ),
-        FilledButton(
-          onPressed: onLogin,
-          style: FilledButton.styleFrom(
-            backgroundColor: HgColors.ink,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(0, 40),
+        HgPressable(
+          key: const ValueKey('hg-profile-login'),
+          haptic: true,
+          semanticLabel: '登录黄果账号',
+          borderRadius: BorderRadius.circular(12),
+          pressedOpacity: 0.82,
+          onTap: onLogin,
+          child: Container(
+            height: 40,
             padding: const EdgeInsets.symmetric(horizontal: 18),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: HgColors.ink,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              '登录',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          child: const Text('登录'),
         ),
       ],
     );
@@ -608,32 +684,32 @@ class _ProfileStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: HgInkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 72,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Column(
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: context.hgOnSurface,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
+    return HgPressable(
+      onTap: onTap,
+      haptic: onTap != null,
+      semanticLabel: label,
+      borderRadius: BorderRadius.circular(12),
+      pressedOpacity: 0.72,
+      child: SizedBox(
+        width: 72,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Column(
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  color: context.hgOnSurface,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  style: TextStyle(color: context.hgMuted, fontSize: 11),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(color: context.hgMuted, fontSize: 11),
+              ),
+            ],
           ),
         ),
       ),
@@ -643,11 +719,13 @@ class _ProfileStat extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   const _QuickActions({
+    required this.selected,
     required this.onCollections,
     required this.onHistory,
     required this.onLikes,
   });
 
+  final int selected;
   final VoidCallback onCollections;
   final VoidCallback onHistory;
   final VoidCallback onLikes;
@@ -655,125 +733,122 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      (Icons.star_rounded, '追剧', context.hgOnSurface, onCollections, 0),
-      (Icons.history_rounded, '历史', context.hgOnSurface, onHistory, 0),
-      (Icons.favorite_rounded, '喜欢', context.hgOnSurface, onLikes, 0),
+      (Icons.star_rounded, '追剧', onCollections),
+      (Icons.history_rounded, '历史', onHistory),
+      (Icons.favorite_rounded, '喜欢', onLikes),
     ];
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
         color: context.hgSurface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        children: actions
-            .map(
-              (action) => Expanded(
-                child: HgInkWell(
-                  onTap: action.$4,
-                  child: Column(
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Icon(action.$1, color: action.$3, size: 24),
-                          if (action.$5 > 0)
-                            Positioned(
-                              top: -5,
-                              right: -9,
-                              child: Container(
-                                constraints: const BoxConstraints(minWidth: 15),
-                                height: 15,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 3,
-                                ),
-                                alignment: Alignment.center,
-                                decoration: const BoxDecoration(
-                                  color: HgColors.orange,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  action.$5 > 99 ? '99+' : '${action.$5}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
+        children: List.generate(actions.length, (index) {
+          final action = actions[index];
+          final active = selected == index;
+          return Expanded(
+            child: Semantics(
+              selected: active,
+              child: HgPressable(
+                haptic: true,
+                semanticLabel: action.$2,
+                onTap: action.$3,
+                pressedOpacity: 0.68,
+                child: Column(
+                  children: [
+                    Icon(
+                      action.$1,
+                      color: active ? HgColors.orange : context.hgMuted,
+                      size: 24,
+                    ),
+                    const SizedBox(height: 7),
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOutCubic,
+                      style: TextStyle(
+                        color: active ? context.hgOnSurface : context.hgMuted,
+                        fontSize: 11.5,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                       ),
-                      const SizedBox(height: 7),
-                      Text(
-                        action.$2,
-                        style: TextStyle(
-                          color: context.hgOnSurface,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      child: Text(action.$2),
+                    ),
+                    const SizedBox(height: 5),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      width: active ? 14 : 0,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: HgColors.orange,
+                        borderRadius: BorderRadius.circular(99),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            )
-            .toList(growable: false),
+            ),
+          );
+        }),
       ),
     );
   }
 }
 
 class _GuestBenefits extends StatelessWidget {
-  const _GuestBenefits({required this.onLogin});
-
-  final VoidCallback onLogin;
+  const _GuestBenefits();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      padding: const EdgeInsets.fromLTRB(18, 17, 18, 18),
       decoration: BoxDecoration(
         color: context.hgSurface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '登录后同步观看记录',
-            style: TextStyle(
-              color: context.hgOnSurface,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '换设备也能接着上次看到的一集继续播放',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.hgMuted, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: FilledButton(
-              onPressed: onLogin,
-              style: FilledButton.styleFrom(
-                backgroundColor: HgColors.ink,
-                minimumSize: const Size.fromHeight(44),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 0,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11),
+          Row(
+            children: [
+              Text(
+                '登录后可用',
+                style: TextStyle(
+                  color: context.hgOnSurface,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              child: const Text('登录黄果账号'),
-            ),
+              const Spacer(),
+              Text(
+                '跨设备同步',
+                style: TextStyle(
+                  color: context.hgMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const _GuestBenefitRow(
+            icon: Icons.devices_rounded,
+            title: '多设备续播',
+            detail: '换机后从上次看到的位置继续',
+          ),
+          const SizedBox(height: 13),
+          const _GuestBenefitRow(
+            icon: Icons.star_outline_rounded,
+            title: '追剧与收藏同步',
+            detail: '追剧列表、收藏内容跟随账号保存',
+          ),
+          const SizedBox(height: 13),
+          const _GuestBenefitRow(
+            icon: Icons.favorite_border_rounded,
+            title: '点赞与消息同步',
+            detail: '喜欢记录和互动消息不丢掉',
           ),
         ],
       ),
@@ -781,8 +856,60 @@ class _GuestBenefits extends StatelessWidget {
   }
 }
 
+class _GuestBenefitRow extends StatelessWidget {
+  const _GuestBenefitRow({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: HgColors.orange.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, color: HgColors.orange, size: 19),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: context.hgOnSurface,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.hgMuted, fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _LibraryCard extends StatelessWidget {
-  const _LibraryCard({required this.item, required this.onTap});
+  const _LibraryCard({super.key, required this.item, required this.onTap});
 
   final HgPlaylistItem item;
   final VoidCallback onTap;
@@ -794,15 +921,18 @@ class _LibraryCard extends StatelessWidget {
               ? '看到 ${item.lastEpisode}/${item.totalEpisodes} 集'
               : '看到 ${item.lastEpisode} 集')
         : (item.totalEpisodes > 0 ? '全 ${item.totalEpisodes} 集' : '继续观看');
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return HgPressable(
+      haptic: true,
+      semanticLabel: '${item.title}，$episodeText',
+      borderRadius: BorderRadius.circular(14),
+      pressedOpacity: 0.78,
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(14),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -861,7 +991,7 @@ class _LibraryCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: item.progress,
                 minHeight: 2.5,
-                backgroundColor: const Color(0xFFEDECE9),
+                backgroundColor: context.hgLine.withValues(alpha: 0.72),
                 valueColor: const AlwaysStoppedAnimation(HgColors.orange),
               ),
             ),
@@ -991,26 +1121,28 @@ class _LegacyLibraryPageState extends State<_LegacyLibraryPage> {
                 child: HgErrorState(error: _error!, onRetry: _load),
               )
             else if (_items.isEmpty)
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: HgEmptyState(
                   icon: Icons.movie_outlined,
-                  title: '暂时没有内容',
+                  title: widget.favorites ? '还没有追剧' : '还没有观看记录',
+                  message: widget.favorites ? '追剧后会显示在这里。' : '播放过的短剧会记录在这里。',
                 ),
               )
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 28),
                 sliver: SliverGrid.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 140,
                     crossAxisSpacing: 10,
-                    mainAxisSpacing: 16,
+                    mainAxisSpacing: 18,
                     childAspectRatio: 0.59,
                   ),
                   itemCount: _items.length,
                   itemBuilder: (context, index) {
                     final item = _items[index];
                     return _LibraryCard(
+                      key: ValueKey('hg-legacy-library-card-${item.dramaId}'),
                       item: item,
                       onTap: () async {
                         await Navigator.of(context).push(

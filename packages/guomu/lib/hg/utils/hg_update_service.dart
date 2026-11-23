@@ -8,17 +8,25 @@ class HgReleaseAsset {
     required this.name,
     required this.downloadUrl,
     required this.size,
+    this.apiUrl = '',
+    this.digest = '',
   });
 
   final String name;
   final String downloadUrl;
   final int size;
+  final String apiUrl;
+  final String digest;
+
+  String get binaryUrl => apiUrl.isNotEmpty ? apiUrl : downloadUrl;
 
   factory HgReleaseAsset.fromJson(Map<String, dynamic> json) {
     return HgReleaseAsset(
       name: json['name']?.toString() ?? '',
       downloadUrl: json['browser_download_url']?.toString() ?? '',
       size: (json['size'] as num?)?.toInt() ?? 0,
+      apiUrl: json['url']?.toString() ?? '',
+      digest: json['digest']?.toString() ?? '',
     );
   }
 }

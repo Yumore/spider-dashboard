@@ -182,16 +182,20 @@ class _TagFeedPageState extends State<TagFeedPage> {
                         ),
                         if (widget.tag.hotScore > 0) ...[
                           const Spacer(),
-                          const Icon(
+                          Icon(
                             Icons.local_fire_department_rounded,
-                            color: Color(0xFFB3B3B7),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.4,
+                            ),
                             size: 14,
                           ),
                           const SizedBox(width: 3),
                           Text(
                             formatCount(widget.tag.hotScore),
-                            style: const TextStyle(
-                              color: Color(0xFF8A8A8E),
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
                               fontSize: 10,
                             ),
                           ),

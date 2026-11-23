@@ -36,6 +36,7 @@ class HgVideoController extends ChangeNotifier {
   bool _ready = false;
   String? _error;
   bool _playing = false;
+  bool _buffering = false;
   bool _ended = false;
   double _progress = 0;
   double _aspectRatio = 0;
@@ -49,6 +50,20 @@ class HgVideoController extends ChangeNotifier {
   bool get hasError => _error != null;
   String? get errorDescription => _error;
   bool get isPlaying => _playing;
+  bool get isBuffering => _buffering;
+  Duration get bufferedPosition {
+    final video = _video;
+    if (video == null) return Duration.zero;
+    final ranges = video.buffered;
+    for (var index = 0; index < ranges.length; index++) {
+      if (ranges.start(index) <= video.currentTime &&
+          ranges.end(index) >= video.currentTime) {
+        return Duration(milliseconds: (ranges.end(index) * 1000).round());
+      }
+    }
+    return _position;
+  }
+
   double get progress => _progress;
   double get aspectRatio => _aspectRatio;
   Duration get position => _position;
@@ -81,10 +96,34 @@ class HgVideoController extends ChangeNotifier {
     _subscriptions.add(
       video.onCanPlay.listen((_) {
         _ready = true;
+        _buffering = false;
         _error = null;
         _applyPendingSeek();
         notifyListeners();
       }),
+    );
+    _subscriptions.add(
+      video.onWaiting.listen((_) {
+        _buffering = true;
+        notifyListeners();
+      }),
+    );
+    _subscriptions.add(
+      video.onPlaying.listen((_) {
+        _buffering = false;
+        notifyListeners();
+      }),
+    );
+    _subscriptions.add(
+      video.onSeeked.listen((_) {
+        _buffering = false;
+        notifyListeners();
+      }),
+    );
+    _subscriptions.add(
+      web.EventStreamProvider<web.Event>(
+        'progress',
+      ).forElement(video).listen((_) => notifyListeners()),
     );
     _subscriptions.add(
       video.onPlay.listen((_) {
@@ -113,7 +152,7 @@ class HgVideoController extends ChangeNotifier {
     );
     _subscriptions.add(
       video.onError.listen((_) {
-        _error = video.error?.message;
+        _error = video.error?.message ?? '视频加载失败';
         _ready = false;
         notifyListeners();
       }),
@@ -146,11 +185,20 @@ class HgVideoController extends ChangeNotifier {
         if (_ended) return;
         _ended = true;
         _playing = false;
+        _buffering = false;
         onEnded?.call();
+        notifyListeners();
       }),
     );
 
-    if (_Hls.isSupported()) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+    final nativeMedia =
+        url.startsWith('blob:') ||
+        url.startsWith('data:video/') ||
+        ['.mp4', '.m4v', '.webm', '.mov'].any(path.endsWith);
+    if (nativeMedia) {
+      video.src = url;
+    } else if (_Hls.isSupported()) {
       _hls = _Hls()
         ..loadSource(url)
         ..attachMedia(video);
@@ -224,6 +272,7 @@ class HgVideoController extends ChangeNotifier {
       return;
     }
     _pendingSeek = null;
+    if (target < duration) _ended = false;
     video.currentTime = target;
     _position = Duration(milliseconds: (target * 1000).round());
     notifyListeners();

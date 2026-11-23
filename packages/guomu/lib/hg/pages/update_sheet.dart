@@ -1,31 +1,51 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_metadata.dart';
 import '../theme/hg_theme.dart';
 import '../widgets/hg_adaptive_sheet.dart';
 import '../utils/hg_update_service.dart';
+import '../utils/hg_update_download.dart';
+
+typedef HgUpdateDownloadAction =
+    Future<String> Function(
+      HgReleaseAsset asset, {
+      CancelToken? cancelToken,
+      void Function(int, int)? onProgress,
+    });
 
 Future<void> showHgUpdateResultSheet(
   BuildContext context,
   HgUpdateCheckResult result, {
   bool automatic = false,
+  HgUpdateDownloadAction download = HgUpdateDownload.download,
 }) {
   return showHgAdaptiveSheetBuilder<void>(
     context,
     childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.4),
-    initialSize: 0.62,
-    builder: (_) => _HgUpdateSheet(result: result, automatic: automatic),
+    initialSize: MediaQuery.sizeOf(context).height < 500 ? 0.9 : 0.62,
+    builder: (_) => _HgUpdateSheet(
+      result: result,
+      automatic: automatic,
+      download: download,
+    ),
   );
 }
 
 class _HgUpdateSheet extends StatefulWidget {
-  const _HgUpdateSheet({required this.result, required this.automatic});
+  const _HgUpdateSheet({
+    required this.result,
+    required this.automatic,
+    required this.download,
+  });
 
   final HgUpdateCheckResult result;
   final bool automatic;
+  final HgUpdateDownloadAction download;
 
   @override
   State<_HgUpdateSheet> createState() => _HgUpdateSheetState();
@@ -34,6 +54,16 @@ class _HgUpdateSheet extends StatefulWidget {
 class _HgUpdateSheetState extends State<_HgUpdateSheet> {
   bool _opening = false;
   String? _error;
+  CancelToken? _cancelToken;
+  int _received = 0;
+  int _total = 0;
+  String? _downloadedPath;
+
+  @override
+  void dispose() {
+    _cancelToken?.cancel();
+    super.dispose();
+  }
 
   Future<void> _openRelease() async {
     if (_opening) return;
@@ -41,8 +71,53 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
       _opening = true;
       _error = null;
     });
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        widget.result.release.androidAsset != null) {
+      final token = _cancelToken = CancelToken();
+      try {
+        final path =
+            _downloadedPath ??
+            await widget.download(
+              widget.result.release.androidAsset!,
+              cancelToken: token,
+              onProgress: (received, total) {
+                if (mounted) {
+                  setState(() {
+                    _received = received;
+                    _total = total;
+                  });
+                }
+              },
+            );
+        if (!mounted || token.isCancelled) return;
+        setState(() => _downloadedPath = path);
+        await HgUpdateDownload.install(path);
+      } catch (error) {
+        if (mounted &&
+            !(error is DioException && CancelToken.isCancel(error))) {
+          setState(
+            () => _error = error is HgUpdateException
+                ? error.message
+                : error is PlatformException
+                ? error.message ?? '无法开始安装，请重试'
+                : '无法开始安装，请重试',
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _opening = false;
+            _cancelToken = null;
+          });
+        }
+      }
+      return;
+    }
     final platform = defaultTargetPlatform;
-    final downloadUrl = widget.result.release.downloadUrlFor(platform);
+    final downloadUrl = platform == TargetPlatform.iOS
+        ? widget.result.release.htmlUrl
+        : widget.result.release.downloadUrlFor(platform);
     final uri = Uri.tryParse(downloadUrl);
     if (uri == null) {
       setState(() {
@@ -51,21 +126,26 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
       });
       return;
     }
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!mounted) return;
-    setState(() {
-      _opening = false;
-      if (!opened) _error = '无法打开下载页面，请稍后重试';
-    });
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (mounted && !opened) setState(() => _error = '无法打开下载页面，请稍后重试');
+    } catch (_) {
+      if (mounted) setState(() => _error = '无法打开下载页面，请稍后重试');
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
   }
 
   String get _buttonLabel {
     if (kIsWeb) return '查看新版本';
     return switch (defaultTargetPlatform) {
       TargetPlatform.android =>
-        widget.result.release.androidAsset == null ? '打开发布页' : '下载更新 APK',
-      TargetPlatform.iOS =>
-        widget.result.release.iosAsset == null ? '打开发布页' : '下载未签名 IPA',
+        widget.result.release.androidAsset == null
+            ? '打开发布页'
+            : _downloadedPath == null
+            ? '下载并安装'
+            : '打开安装程序',
+      TargetPlatform.iOS => '前往手动更新',
       _ => '打开发布页',
     };
   }
@@ -180,10 +260,60 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: Text(
-                    'iOS 安装包未签名，下载后需要使用 Sideloadly、AltStore 或自己的证书完成签名安装。',
+                    'iOS 需要手动更新：前往发布页下载 IPA，再使用原来的签名或侧载工具覆盖安装。应用内无法直接安装更新。',
                     style: TextStyle(
                       color: context.hgMuted,
                       fontSize: 10.5,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              if (_opening &&
+                  !kIsWeb &&
+                  defaultTargetPlatform == TargetPlatform.android)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LinearProgressIndicator(
+                        value: _total > 0
+                            ? (_received / _total).clamp(0, 1)
+                            : null,
+                        minHeight: 5,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _total > 0
+                                  ? '${(_received / _total * 100).clamp(0, 100).toStringAsFixed(0)}% · ${(_received / 1048576).toStringAsFixed(1)} / ${(_total / 1048576).toStringAsFixed(1)} MB'
+                                  : '正在连接下载服务…',
+                              style: TextStyle(
+                                color: context.hgMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => _cancelToken?.cancel(),
+                            child: const Text('取消下载'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              if (_downloadedPath != null && !_opening)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: Text(
+                    '下载完成。如系统提示，请允许果幕安装应用，然后返回继续安装。',
+                    style: TextStyle(
+                      color: context.hgMuted,
+                      fontSize: 12,
                       height: 1.5,
                     ),
                   ),
@@ -207,13 +337,19 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                   child: FilledButton(
                     onPressed: _opening ? null : _openRelease,
                     style: FilledButton.styleFrom(
-                      backgroundColor: HgColors.ink,
-                      disabledBackgroundColor: const Color(0xFF9B9B9F),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: Text(_opening ? '正在打开…' : _buttonLabel),
+                    child: Text(
+                      _opening
+                          ? (!kIsWeb &&
+                                    defaultTargetPlatform ==
+                                        TargetPlatform.android
+                                ? '正在下载…'
+                                : '正在打开…')
+                          : _buttonLabel,
+                    ),
                   ),
                 ),
               ),

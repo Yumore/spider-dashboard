@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,9 +36,14 @@ class _SearchPageState extends State<SearchPage> {
   String _submitted = '';
   int _page = 1;
   int _pages = 1;
+  int _requestVersion = 0;
+  int _suggestionVersion = 0;
+  bool _editing = false;
+  bool _discovering = true;
   bool _loading = false;
   bool _loadingMore = false;
   Object? _error;
+  Object? _moreError;
 
   @override
   void initState() {
@@ -57,7 +64,10 @@ class _SearchPageState extends State<SearchPage> {
 
   void _onScroll() {
     if (!_scroll.hasClients || _scroll.position.extentAfter >= 420) return;
-    if (_submitted.isNotEmpty && _page < _pages) {
+    if (!_editing &&
+        _moreError == null &&
+        _submitted.isNotEmpty &&
+        _page < _pages) {
       _search(keyword: _submitted, more: true);
     }
   }
@@ -71,30 +81,23 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _loadDiscovery() async {
     try {
       final api = context.read<HgApi>();
-      List<String> hotWords = const [];
-      List<String> hotTags = const [];
-      List<HgVideoCard> recommended = const [];
       await Future.wait<void>([
-        api.hotSearchWords().then<void>(
-          (value) => hotWords = value,
-          onError: (_) {},
-        ),
-        api.hotSearchTags().then<void>(
-          (value) => hotTags = value,
-          onError: (_) {},
-        ),
-        api
-            .homeRecommendationsPage(size: 20)
-            .then<void>((value) => recommended = value.items, onError: (_) {}),
+        api.hotSearchWords().then<void>((value) {
+          if (mounted) setState(() => _hotWords = value);
+        }, onError: (_) {}),
+        api.hotSearchTags().then<void>((value) {
+          if (mounted) setState(() => _hotTags = value);
+        }, onError: (_) {}),
+        api.homeRecommendationsPage(size: 20).then<void>((value) {
+          if (mounted) {
+            setState(() => _recommended = value.items.take(8).toList());
+          }
+        }, onError: (_) {}),
       ]);
-      if (!mounted) return;
-      setState(() {
-        _hotWords = hotWords;
-        _hotTags = hotTags;
-        _recommended = recommended.take(8).toList(growable: false);
-      });
     } catch (_) {
       // 热搜失败不影响手动搜索。
+    } finally {
+      if (mounted) setState(() => _discovering = false);
     }
   }
 
@@ -124,22 +127,49 @@ class _SearchPageState extends State<SearchPage> {
 
   void _scheduleSuggestions(String value) {
     final keyword = value.trim();
-    if (keyword.isEmpty) {
-      if (_liveSuggestions.isNotEmpty) {
-        setState(() => _liveSuggestions = const []);
-      }
-      return;
-    }
+    final version = ++_suggestionVersion;
+    if (keyword.isEmpty) return;
     _suggestDebouncer.run(() async {
+      if (!mounted || version != _suggestionVersion) return;
       try {
         final words = await context.read<HgApi>().searchSuggestions(keyword);
-        if (mounted && _controller.text.trim() == keyword) {
+        if (mounted && version == _suggestionVersion && _editing) {
           setState(() => _liveSuggestions = words.take(8).toList());
         }
       } catch (_) {
         // 联想词失败时保留普通搜索。
       }
     });
+  }
+
+  void _editQuery(String value) {
+    ++_requestVersion;
+    setState(() {
+      _editing = true;
+      _loading = false;
+      _loadingMore = false;
+      _liveSuggestions = const [];
+    });
+    if (_scroll.hasClients && _scroll.offset != 0) _scroll.jumpTo(0);
+    _scheduleSuggestions(value);
+  }
+
+  void _clearQuery() {
+    _controller.clear();
+    ++_requestVersion;
+    ++_suggestionVersion;
+    setState(() {
+      _submitted = '';
+      _editing = false;
+      _loading = false;
+      _loadingMore = false;
+      _items = const [];
+      _liveSuggestions = const [];
+      _error = null;
+      _moreError = null;
+    });
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    _focus.requestFocus();
   }
 
   Future<void> _saveHistory(String keyword) async {
@@ -149,25 +179,38 @@ class _SearchPageState extends State<SearchPage> {
       clean,
       ..._history.where((item) => item != clean),
     ].take(10).toList(growable: false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_historyKey, next);
     if (mounted) setState(() => _history = next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_historyKey, next);
+    } catch (_) {
+      // A local history write must not interrupt searching.
+    }
   }
 
   Future<void> _search({String? keyword, bool more = false}) async {
     final text = (keyword ?? _controller.text).trim();
     if (text.isEmpty ||
-        (more && (_loadingMore || _loading || _page >= _pages))) {
+        (more && (_editing || _loadingMore || _loading || _page >= _pages))) {
       return;
     }
-    _controller.text = text;
-    _controller.selection = TextSelection.collapsed(offset: text.length);
-    _focus.unfocus();
+    final version = more ? _requestVersion : ++_requestVersion;
+    final page = more ? _page + 1 : 1;
+    if (!more) {
+      ++_suggestionVersion;
+      _controller.text = text;
+      _controller.selection = TextSelection.collapsed(offset: text.length);
+      _focus.unfocus();
+      unawaited(_saveHistory(text));
+    }
     setState(() {
+      _moreError = null;
       if (more) {
         _loadingMore = true;
       } else {
         _loading = true;
+        _loadingMore = false;
+        _editing = false;
         _submitted = text;
         _page = 1;
         _pages = 1;
@@ -176,15 +219,14 @@ class _SearchPageState extends State<SearchPage> {
         _error = null;
       }
     });
+    if (!more && _scroll.hasClients) _scroll.jumpTo(0);
     try {
       final result = await context.read<HgApi>().search(
         text,
-        page: more ? _page + 1 : 1,
+        page: page,
         size: 24,
       );
-      if (!mounted) return;
-      await _saveHistory(text);
-      if (!mounted) return;
+      if (!mounted || version != _requestVersion) return;
       setState(() {
         _items = more
             ? [
@@ -198,10 +240,21 @@ class _SearchPageState extends State<SearchPage> {
         _pages = result.pagination.pages;
         _submitted = text;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && version == _requestVersion) _onScroll();
+      });
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted && version == _requestVersion) {
+        setState(() {
+          if (more) {
+            _moreError = error;
+          } else {
+            _error = error;
+          }
+        });
+      }
     } finally {
-      if (mounted) {
+      if (mounted && version == _requestVersion) {
         setState(() {
           _loading = false;
           _loadingMore = false;
@@ -213,55 +266,47 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final top = MediaQuery.paddingOf(context).top;
-    final hasSearch = _submitted.isNotEmpty;
+    final hasSearch = _submitted.isNotEmpty && !_editing;
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 64,
+        titleSpacing: 0,
+        leadingWidth: 48,
+        leading: IconButton(
+          tooltip: '返回',
+          onPressed: () => Navigator.maybePop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 21),
+        ),
+        title: TextField(
+          controller: _controller,
+          focusNode: _focus,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _search(),
+          decoration: InputDecoration(
+            hintText: '搜索短剧、演员或题材',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: _controller.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: '清空搜索',
+                    onPressed: _clearQuery,
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                  ),
+          ),
+          onChanged: _editQuery,
+        ),
+        actions: [
+          TextButton(
+            onPressed: _controller.text.trim().isEmpty ? null : () => _search(),
+            child: const Text('搜索'),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: CustomScrollView(
         controller: _scroll,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(8, top + 5, 14, 10),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focus,
-                      autofocus: false,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _search(),
-                      decoration: InputDecoration(
-                        hintText: '搜索短剧、演员或题材',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        suffixIcon: _controller.text.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: () {
-                                  _controller.clear();
-                                  setState(() {
-                                    _submitted = '';
-                                    _items = const [];
-                                    _liveSuggestions = const [];
-                                  });
-                                },
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                      ),
-                      onChanged: (value) {
-                        setState(() {});
-                        _scheduleSuggestions(value);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           if (!hasSearch && _loading == false) ...[
             if (_liveSuggestions.isNotEmpty)
               SliverToBoxAdapter(
@@ -330,7 +375,7 @@ class _SearchPageState extends State<SearchPage> {
                       ),
                       const Spacer(),
                       Text(
-                        '根据热播内容推荐',
+                        '精选内容推荐',
                         style: TextStyle(
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.36,
@@ -344,7 +389,7 @@ class _SearchPageState extends State<SearchPage> {
               ),
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: 230,
+                  height: HgVideoRailCard.heightFor(context, width: 134),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     scrollDirection: Axis.horizontal,
@@ -360,6 +405,10 @@ class _SearchPageState extends State<SearchPage> {
                             builder: (_) => DramaDetailPage(
                               videoId: video.id,
                               preloaded: video,
+                              feedIds: _recommended
+                                  .map((item) => item.id)
+                                  .toList(),
+                              feedIndex: index,
                             ),
                           ),
                         ),
@@ -369,6 +418,14 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               ),
             ],
+            if (_discovering &&
+                _hotWords.isEmpty &&
+                _hotTags.isEmpty &&
+                _recommended.isEmpty &&
+                _liveSuggestions.isEmpty)
+              const SliverToBoxAdapter(
+                child: HgLoading(variant: HgLoadingVariant.list),
+              ),
             const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
           if (_loading)
@@ -456,8 +513,15 @@ class _SearchPageState extends State<SearchPage> {
                           height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
+                      : _moreError != null
+                      ? TextButton.icon(
+                          onPressed: () =>
+                              _search(keyword: _submitted, more: true),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('加载中断，点此重试'),
+                        )
                       : Text(
-                          _items.isEmpty ? '' : '已经到底了',
+                          _items.isEmpty || _page < _pages ? '' : '已经到底了',
                           style: TextStyle(
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.34,
@@ -506,9 +570,9 @@ class _SuggestionSection extends StatelessWidget {
                 child: Row(
                   children: [
                     const SizedBox(width: 13),
-                    const Icon(
+                    Icon(
                       Icons.search_rounded,
-                      color: Color(0xFF929297),
+                      color: context.hgMuted,
                       size: 18,
                     ),
                     const SizedBox(width: 9),
@@ -517,15 +581,15 @@ class _SuggestionSection extends StatelessWidget {
                         word,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF333336),
+                        style: TextStyle(
+                          color: context.hgOnSurface,
                           fontSize: 13,
                         ),
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.north_west_rounded,
-                      color: Color(0xFFB1B1B5),
+                      color: context.hgMuted,
                       size: 16,
                     ),
                     const SizedBox(width: 13),

@@ -1,4 +1,4 @@
-const String kHgImageOrigin = 'https://pic.drleao.cn';
+const String kHgImageOrigin = 'https://pic.qnlycc.cn';
 
 String resolveHgMediaUrl(String value) {
   final clean = value.trim();

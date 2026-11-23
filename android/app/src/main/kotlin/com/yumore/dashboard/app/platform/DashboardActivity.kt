@@ -1,12 +1,16 @@
 package com.yumore.dashboard.app.platform
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.content.pm.ActivityInfo
+import android.provider.Settings
 import android.view.KeyEvent
+import androidx.core.content.FileProvider
+import java.io.File
 import com.yumore.dashboard.novelsound.platform.AiRequestPlugin
 import com.yumore.dashboard.novelsound.platform.DownloadsPlugin
 import com.yumore.dashboard.novelsound.platform.EinkRefreshPlugin
@@ -46,9 +50,11 @@ class DashboardActivity : FlutterActivity() {
     private var hapticsChannel: MethodChannel? = null
     private var guomuDeepLinkChannel: MethodChannel? = null
     private var guomuEntryChannel: MethodChannel? = null
+    private var guomuUpdateChannel: MethodChannel? = null
     private var xiaohongshuGuestMethodChannel: MethodChannel? = null
     private var xiaohongshuGuestHandler: XiaohongshuGuestChannel? = null
     private var pendingGuomuDeepLink: String? = null
+    private var pendingGuomuUpdatePath: String? = null
     internal var isResumed = false
 
     override fun getFlutterShellArgs(): FlutterShellArgs =
@@ -82,6 +88,7 @@ class DashboardActivity : FlutterActivity() {
         super.onResume()
         isResumed = true
         displayController.applyCurrentOrientation()
+        resumePendingGuomuUpdate()
     }
 
     override fun onPause() {
@@ -180,6 +187,46 @@ class DashboardActivity : FlutterActivity() {
                 }
             }
         }
+        guomuUpdateChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.guomu.huangguo/update",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                if (call.method != "installApk") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                try {
+                    val file = File(call.argument<String>("path").orEmpty()).canonicalFile
+                    val allowedDirectory = File(cacheDir, "guomu-updates").canonicalFile
+                    if (file.parentFile != allowedDirectory || !file.isFile || file.extension != "apk") {
+                        result.error("invalid_apk", "安装包不存在，请重新下载", null)
+                    } else if (!hasMatchingGuomuUpdateSignature(file)) {
+                        result.error(
+                            "signature_mismatch",
+                            "新版安装签名与当前版本不兼容。请保留需要的数据后卸载旧版，再手动安装新版；后续版本可直接更新。",
+                            null,
+                        )
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                        !packageManager.canRequestPackageInstalls()
+                    ) {
+                        pendingGuomuUpdatePath = file.path
+                        startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:$packageName"),
+                            ),
+                        )
+                        result.success(true)
+                    } else {
+                        openGuomuUpdateInstaller(file)
+                        result.success(true)
+                    }
+                } catch (_: Exception) {
+                    result.error("install_failed", "无法打开安装程序", null)
+                }
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "com.guomu.huangguo/share",
@@ -211,6 +258,60 @@ class DashboardActivity : FlutterActivity() {
         ).also { it.attach(flutterEngine) }
     }
 
+    private fun resumePendingGuomuUpdate() {
+        val path = pendingGuomuUpdatePath ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            pendingGuomuUpdatePath = null
+            return
+        }
+        pendingGuomuUpdatePath = null
+        try {
+            openGuomuUpdateInstaller(File(path))
+        } catch (_: Exception) {
+            // A user may revoke the permission or remove the cached package while
+            // Settings is open. The next update check can offer the package again.
+        }
+    }
+
+    private fun openGuomuUpdateInstaller(file: File) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.updates", file)
+        startActivity(Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        })
+    }
+
+    @Suppress("DEPRECATION")
+    private fun hasMatchingGuomuUpdateSignature(file: File): Boolean {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
+        }
+        val current = packageManager.getPackageInfo(packageName, flags)
+        val update = packageManager.getPackageArchiveInfo(file.path, flags) ?: return false
+        if (update.packageName != packageName) return false
+        val currentSigners = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            current.signingInfo?.apkContentsSigners
+        } else {
+            current.signatures
+        }
+        val updateSigners = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            update.signingInfo?.apkContentsSigners
+        } else {
+            update.signatures
+        }
+        return currentSigners != null && updateSigners != null &&
+            currentSigners.isNotEmpty() && updateSigners.isNotEmpty() &&
+            currentSigners.all { signer ->
+                updateSigners.any { candidate ->
+                    signer.toByteArray().contentEquals(candidate.toByteArray())
+                }
+            }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -238,6 +339,8 @@ class DashboardActivity : FlutterActivity() {
         guomuDeepLinkChannel = null
         guomuEntryChannel?.setMethodCallHandler(null)
         guomuEntryChannel = null
+        guomuUpdateChannel?.setMethodCallHandler(null)
+        guomuUpdateChannel = null
         xiaohongshuGuestMethodChannel?.setMethodCallHandler(null)
         xiaohongshuGuestMethodChannel = null
         xiaohongshuGuestHandler?.dispose()

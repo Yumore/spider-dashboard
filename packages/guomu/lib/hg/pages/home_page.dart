@@ -22,6 +22,66 @@ import 'user_activity_pages.dart';
 import 'video_more_page.dart';
 import '../widgets/hg_pressable.dart';
 
+class HomeFeedSections {
+  const HomeFeedSections({
+    required this.featured,
+    required this.latest,
+    required this.hot,
+  });
+
+  final List<HgVideoCard> featured;
+  final List<HgVideoCard> latest;
+  final List<HgRankItem> hot;
+
+  List<HgVideoCard> feedFor(int videoId) {
+    for (final section in [featured, latest]) {
+      if (section.any((item) => item.id == videoId)) return section;
+    }
+    if (hot.any((item) => item.videoId == videoId)) {
+      return hot.map(homeRankVideo).toList(growable: false);
+    }
+    return const [];
+  }
+}
+
+HgVideoCard homeRankVideo(HgRankItem item) => HgVideoCard(
+  id: item.videoId,
+  title: item.title,
+  cover: item.cover,
+  score: item.score,
+  episodeCount: item.episodeCount,
+  isFinished: item.isFinished,
+  tags: item.tags,
+  hot: item.playCount,
+  likeCount: item.likeCount,
+  collectCount: item.collectCount,
+  commentCount: item.commentCount,
+);
+
+HomeFeedSections buildHomeFeedSections({
+  required List<HgVideoCard> featured,
+  required List<HgVideoCard> latest,
+  required List<HgRankItem> hot,
+}) {
+  final seen = <int>{};
+  List<HgVideoCard> unique(Iterable<HgVideoCard> cards, int limit) {
+    return List.unmodifiable(
+      cards.where((card) => card.id > 0 && seen.add(card.id)).take(limit),
+    );
+  }
+
+  final safeFeatured = unique(featured, 10);
+  final safeLatest = unique(latest, 6);
+  final safeHot = List<HgRankItem>.unmodifiable(
+    hot.where((item) => item.videoId > 0 && seen.add(item.videoId)).take(3),
+  );
+  return HomeFeedSections(
+    featured: safeFeatured,
+    latest: safeLatest,
+    hot: safeHot,
+  );
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -211,9 +271,18 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _openDetail(HgVideoCard video) async {
-    final latestIds = _latest.map((item) => item.id).toList(growable: false);
-    final ids = latestIds.contains(video.id) ? latestIds : [video.id];
+  Future<void> _openDetail(
+    HgVideoCard video, {
+    List<HgVideoCard>? feedSource,
+    String? heroTag,
+  }) async {
+    final source = feedSource ?? [video];
+    final ids = source
+        .map((item) => item.id)
+        .where((id) => id > 0)
+        .toSet()
+        .toList();
+    if (!ids.contains(video.id)) ids.insert(0, video.id);
     final index = ids.indexOf(video.id).clamp(0, ids.length - 1).toInt();
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -222,6 +291,7 @@ class _HomePageState extends State<HomePage> {
           preloaded: video,
           feedIds: ids,
           feedIndex: index,
+          heroTag: heroTag,
         ),
       ),
     );
@@ -343,9 +413,14 @@ class _HomePageState extends State<HomePage> {
                 .toDouble();
         final cellWidth = contentWidth / columns;
         final cardHeight = cellWidth / 0.68;
-        final featured = _home.featured.take(10).toList(growable: false);
-        final latest = _latest.take(6).toList(growable: false);
-        final hot = _hotRank.take(3).toList(growable: false);
+        final sections = buildHomeFeedSections(
+          featured: _home.featured,
+          latest: _latest,
+          hot: _hotRank,
+        );
+        final featured = sections.featured;
+        final latest = sections.latest;
+        final hot = sections.hot;
         final topics = _topics.take(6).toList(growable: false);
 
         return ColoredBox(
@@ -369,7 +444,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     if (_home.banners.isNotEmpty)
                       SliverToBoxAdapter(
-                        child: _HomeHeroCarousel(
+                        child: HomeHeroCarousel(
                           banners: _home.banners,
                           onTap: _openBanner,
                         ),
@@ -385,7 +460,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '精选推荐',
-                          eyebrow: '为你精选',
                           actionLabel: '更多推荐',
                           onMore: () =>
                               _openVideoMore(HgVideoMoreKind.recommend),
@@ -393,7 +467,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       SliverToBoxAdapter(
                         child: SizedBox(
-                          height: 245,
+                          height: HgVideoRailCard.heightFor(context),
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             scrollDirection: Axis.horizontal,
@@ -403,7 +477,14 @@ class _HomePageState extends State<HomePage> {
                             itemBuilder: (context, index) => HgVideoRailCard(
                               video: featured[index],
                               width: 142,
-                              onTap: () => _openDetail(featured[index]),
+                              heroTag: 'home-featured-${featured[index].id}',
+                              onTap: () => _openDetail(
+                                featured[index],
+                                feedSource: sections.feedFor(
+                                  featured[index].id,
+                                ),
+                                heroTag: 'home-featured-${featured[index].id}',
+                              ),
                             ),
                           ),
                         ),
@@ -413,7 +494,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '最近上新',
-                          eyebrow: '新剧上线',
                           actionLabel: '全部上新',
                           onMore: () => _openVideoMore(HgVideoMoreKind.newest),
                         ),
@@ -436,7 +516,12 @@ class _HomePageState extends State<HomePage> {
                           itemCount: latest.length,
                           itemBuilder: (context, index) => HgVideoGridCard(
                             video: latest[index],
-                            onTap: () => _openDetail(latest[index]),
+                            heroTag: 'home-latest-${latest[index].id}',
+                            onTap: () => _openDetail(
+                              latest[index],
+                              feedSource: sections.feedFor(latest[index].id),
+                              heroTag: 'home-latest-${latest[index].id}',
+                            ),
                           ),
                         ),
                       ),
@@ -445,7 +530,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '热播短剧',
-                          eyebrow: '正在热播',
                           actionLabel: '更多热播',
                           onMore: _openHotMore,
                         ),
@@ -458,17 +542,11 @@ class _HomePageState extends State<HomePage> {
                               const SizedBox(height: 10),
                           itemBuilder: (context, index) => _HotRankCard(
                             item: hot[index],
+                            heroTag: 'home-hot-${hot[index].videoId}',
                             onTap: () => _openDetail(
-                              HgVideoCard(
-                                id: hot[index].videoId,
-                                title: hot[index].title,
-                                cover: hot[index].cover,
-                                score: hot[index].score,
-                                episodeCount: hot[index].episodeCount,
-                                isFinished: hot[index].isFinished,
-                                tags: hot[index].tags,
-                                createdAt: '',
-                              ),
+                              homeRankVideo(hot[index]),
+                              feedSource: sections.feedFor(hot[index].videoId),
+                              heroTag: 'home-hot-${hot[index].videoId}',
                             ),
                           ),
                         ),
@@ -478,7 +556,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '专题推荐',
-                          eyebrow: '主题合集',
                           actionLabel: '全部专题',
                           onMore: _openTopics,
                         ),
@@ -553,13 +630,6 @@ class _HomeHeader extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(
-                '发现好内容',
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
-                  fontSize: 11,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -704,46 +774,93 @@ class _MessageGlyphPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _HomeHeroCarousel extends StatefulWidget {
-  const _HomeHeroCarousel({required this.banners, required this.onTap});
+class HomeHeroCarousel extends StatefulWidget {
+  const HomeHeroCarousel({
+    super.key,
+    required this.banners,
+    required this.onTap,
+  }) : assert(banners.length > 0);
 
   final List<HgHomeBanner> banners;
   final ValueChanged<HgHomeBanner> onTap;
 
   @override
-  State<_HomeHeroCarousel> createState() => _HomeHeroCarouselState();
+  State<HomeHeroCarousel> createState() => _HomeHeroCarouselState();
 }
 
-class _HomeHeroCarouselState extends State<_HomeHeroCarousel> {
-  static const _initialPage = 10000;
+class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
+  static const _minimumCycles = 10000;
   late final PageController _controller;
   Timer? _timer;
-  int _absolutePage = _initialPage;
+  late int _absolutePage;
   int _index = 0;
+  bool _tickerEnabled = false;
+  bool _userScrolling = false;
+  bool _disposed = false;
 
   int get _loopCount => widget.banners.length;
 
   @override
   void initState() {
     super.initState();
+    // Start on a complete loop so the first slide and first indicator agree.
+    _absolutePage =
+        ((_minimumCycles + _loopCount - 1) ~/ _loopCount) * _loopCount;
     _controller = PageController(
-      initialPage: _initialPage,
+      initialPage: _absolutePage,
       viewportFraction: 0.92,
     );
-    if (_loopCount > 1) {
-      _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-        if (!mounted || !_controller.hasClients) return;
-        _controller.animateToPage(
-          _absolutePage + 1,
-          duration: const Duration(milliseconds: 620),
-          curve: Curves.easeOutCubic,
-        );
-      });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final enabled = TickerMode.of(context);
+    if (enabled == _tickerEnabled) return;
+    _tickerEnabled = enabled;
+    if (enabled) {
+      _scheduleNext();
+    } else {
+      _timer?.cancel();
     }
+  }
+
+  void _scheduleNext() {
+    _timer?.cancel();
+    if (_disposed || !_tickerEnabled || _userScrolling || _loopCount <= 1) {
+      return;
+    }
+    _timer = Timer(const Duration(seconds: 5), _advance);
+  }
+
+  Future<void> _advance() async {
+    if (_disposed || !mounted || !_tickerEnabled || !_controller.hasClients) {
+      _scheduleNext();
+      return;
+    }
+    await _controller.animateToPage(
+      _absolutePage + 1,
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOutCubic,
+    );
+    if (!_disposed && mounted) _scheduleNext();
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollStartNotification &&
+        notification.dragDetails != null) {
+      _userScrolling = true;
+      _timer?.cancel();
+    } else if (notification is ScrollEndNotification && _userScrolling) {
+      _userScrolling = false;
+      _scheduleNext();
+    }
+    return false;
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     _controller.dispose();
     super.dispose();
@@ -756,31 +873,37 @@ class _HomeHeroCarouselState extends State<_HomeHeroCarousel> {
       children: [
         SizedBox(
           height: height,
-          child: PageView.builder(
-            controller: _controller,
-            onPageChanged: (value) {
-              setState(() {
-                _absolutePage = value;
-                _index = value % _loopCount;
-              });
-            },
-            itemBuilder: (context, index) {
-              final banner = widget.banners[index % _loopCount];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _HeroSlide(
-                  banner: banner,
-                  onTap: () => widget.onTap(banner),
-                ),
-              );
-            },
+          child: Semantics(
+            label: '短剧幻灯片，第 ${_index + 1} 张，共 $_loopCount 张',
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onScrollNotification,
+              child: PageView.builder(
+                controller: _controller,
+                onPageChanged: (value) {
+                  setState(() {
+                    _absolutePage = value;
+                    _index = value % _loopCount;
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final banner = widget.banners[index % _loopCount];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: _HeroSlide(
+                      banner: banner,
+                      onTap: () => widget.onTap(banner),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 9),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
-            widget.banners.length,
+            _loopCount,
             (index) => AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
@@ -1088,10 +1211,11 @@ class _ShortcutCard extends StatelessWidget {
 }
 
 class _HotRankCard extends StatelessWidget {
-  const _HotRankCard({required this.item, required this.onTap});
+  const _HotRankCard({required this.item, required this.onTap, this.heroTag});
 
   final HgRankItem item;
   final VoidCallback onTap;
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -1126,7 +1250,11 @@ class _HotRankCard extends StatelessWidget {
                 child: SizedBox(
                   width: 72,
                   height: 92,
-                  child: HgCoverImage(url: item.cover, title: item.title),
+                  child: HgCoverImage(
+                    url: item.cover,
+                    title: item.title,
+                    heroTag: heroTag,
+                  ),
                 ),
               ),
               const SizedBox(width: 11),
@@ -1339,50 +1467,26 @@ class _ShortcutGlyphPainter extends CustomPainter {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.eyebrow,
-    this.actionLabel,
-    this.onMore,
-  });
+  const _SectionHeader({required this.title, this.actionLabel, this.onMore});
 
   final String title;
-  final String eyebrow;
   final String? actionLabel;
   final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: 0.4);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 22, 12, 11),
+      padding: const EdgeInsets.fromLTRB(16, 24, 12, 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                eyebrow,
-                style: TextStyle(
-                  color: muted,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
-                ),
-              ),
-            ],
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
           ),
           const Spacer(),
           if (actionLabel != null)

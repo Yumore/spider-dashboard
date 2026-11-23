@@ -111,13 +111,20 @@ class _CreatorPageState extends State<CreatorPage> {
   }
 
   Future<void> _toggleFollow() async {
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.lightImpact();
     final next = !_following;
-    setState(() => _following = next);
+    var hapticSent = false;
     try {
-      await context.read<HgApi>().follow(widget.userId, next);
+      final updated = await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        if (!hapticSent) {
+          HapticFeedback.lightImpact();
+          hapticSent = true;
+        }
+        setState(() => _following = next);
+        await context.read<HgApi>().follow(widget.userId, next);
+        return true;
+      });
+      if (updated != true && mounted) setState(() => _following = !next);
     } catch (error) {
       if (!mounted) return;
       setState(() => _following = !next);
@@ -169,13 +176,16 @@ class _CreatorPageState extends State<CreatorPage> {
                       child: Row(
                         children: [
                           Material(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: dark
+                                ? Colors.white.withValues(alpha: 0.12)
+                                : Colors.white.withValues(alpha: 0.7),
                             shape: const CircleBorder(),
                             child: IconButton(
                               onPressed: () => Navigator.maybePop(context),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.arrow_back_ios_new_rounded,
                                 size: 18,
+                                color: dark ? Colors.white : HgColors.ink,
                               ),
                             ),
                           ),

@@ -11,6 +11,7 @@ import '../widgets/hg_components.dart';
 import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'creator_page.dart';
+import 'login_sheet.dart';
 import '../widgets/hg_pressable.dart';
 
 class MyFollowsPage extends StatefulWidget {
@@ -51,8 +52,11 @@ class _MyFollowsPageState extends State<MyFollowsPage> {
     if (_updating.contains(author.id)) return;
     setState(() => _updating.add(author.id));
     try {
-      await context.read<HgApi>().follow(author.id, false);
-      if (!mounted) return;
+      final updated = await runAuthenticated(context, () async {
+        await context.read<HgApi>().follow(author.id, false);
+        return true;
+      });
+      if (updated != true || !mounted) return;
       setState(
         () => _items = _items
             .where((item) => item.id != author.id)
@@ -207,8 +211,11 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
   Future<void> _markRead(HgUserMessage message) async {
     if (message.isRead) return;
     try {
-      await context.read<HgApi>().markMessageRead(message.id);
-      if (!mounted) return;
+      final updated = await runAuthenticated(context, () async {
+        await context.read<HgApi>().markMessageRead(message.id);
+        return true;
+      });
+      if (updated != true || !mounted) return;
       setState(
         () => _items = _items
             .map(
@@ -226,8 +233,11 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
     if (_markingAll || _unread == 0) return;
     setState(() => _markingAll = true);
     try {
-      await context.read<HgApi>().markAllMessagesRead();
-      if (!mounted) return;
+      final updated = await runAuthenticated(context, () async {
+        await context.read<HgApi>().markAllMessagesRead();
+        return true;
+      });
+      if (updated != true || !mounted) return;
       setState(
         () => _items = _items
             .map((item) => item.copyWith(isRead: true))
@@ -242,8 +252,11 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
 
   Future<void> _delete(HgUserMessage message) async {
     try {
-      await context.read<HgApi>().deleteMessage(message.id);
-      if (!mounted) return;
+      final updated = await runAuthenticated(context, () async {
+        await context.read<HgApi>().deleteMessage(message.id);
+        return true;
+      });
+      if (updated != true || !mounted) return;
       setState(
         () => _items = _items
             .where((item) => item.id != message.id)
@@ -510,8 +523,11 @@ class _MyFollowersPageState extends State<MyFollowersPage> {
     if (_updating.contains(author.id)) return;
     setState(() => _updating.add(author.id));
     try {
-      await context.read<HgApi>().follow(author.id, !author.isFollowing);
-      if (!mounted) return;
+      final updated = await runAuthenticated(context, () async {
+        await context.read<HgApi>().follow(author.id, !author.isFollowing);
+        return true;
+      });
+      if (updated != true || !mounted) return;
       setState(
         () => _items = _items
             .map(

@@ -26,6 +26,7 @@ class HgDownloadManager extends ChangeNotifier {
     bool? autoUpdate,
     bool downloadNow = true,
   }) async {}
+  Future<void> resumeDownload(int videoId) async {}
   Future<void> setAutoUpdate(int videoId, bool value) async {}
   Future<void> toggleTracking(int videoId, bool value) async {}
   Future<void> checkForUpdates() async {}

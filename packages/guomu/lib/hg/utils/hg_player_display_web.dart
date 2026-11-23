@@ -3,6 +3,10 @@ import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 
 abstract final class HgPlayerDisplay {
+  static Future<void> enterAutoRotate() async {}
+
+  static Future<void> exitLandscape() => reset();
+
   static Future<void> enterLandscape() async {
     try {
       final element = web.document.documentElement;

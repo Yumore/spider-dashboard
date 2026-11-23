@@ -6,11 +6,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'hg_persistent_cache.dart';
+import 'hg_source_pool.dart';
 
 import '../models/hg_models.dart';
 
 const String kHgDefaultBaseUrl = 'https://huangguoai.com';
-const String kHgBootstrapBaseUrl = 'https://2a52.bmikbxhi.cc';
+const String kHgBootstrapBaseUrl = 'https://fdu.kplsifomz.cc';
 const String _configuredBaseUrl = String.fromEnvironment('HG_API_BASE');
 const String _configuredWebProxyUrl = String.fromEnvironment(
   'HG_WEB_PROXY_URL',
@@ -36,6 +37,93 @@ String normalizeHgBaseUrl(String input) {
     throw const FormatException('黄果源地址不能包含账号或密码');
   }
   return uri.origin;
+}
+
+String? normalizeHgDiscoveredSource(
+  String input, {
+  bool trustedManifest = false,
+}) {
+  var candidate = input.trim();
+  if (candidate.isEmpty || candidate.contains('{') || candidate.contains('}')) {
+    return null;
+  }
+  if (!candidate.contains('://')) candidate = 'https://$candidate';
+  final uri = Uri.tryParse(candidate);
+  if (uri == null || uri.host.isEmpty) return null;
+  final host = uri.host.toLowerCase();
+  if (_isLocalOrPrivateHost(host)) return null;
+  if (host == 'huangguoai.ai' ||
+      host == 'hgai16.com' ||
+      host.endsWith('.pages.dev')) {
+    return null;
+  }
+  if (host == 'bmikbxhi.cc' ||
+      host == 'ixgukkejj.cc' ||
+      host == 'fvlelaqt.cc') {
+    return null;
+  }
+  final isKnownContentSource =
+      host == 'huangguoai.com' ||
+      host.endsWith('.huangguoai.com') ||
+      host == 'drleao.cn' ||
+      host.endsWith('.drleao.cn') ||
+      host.endsWith('.bmikbxhi.cc') ||
+      host.endsWith('.fvlelaqt.cc') ||
+      host.endsWith('.psmvjggyd.cc') ||
+      host.endsWith('.ixgukkejj.cc');
+  if (!trustedManifest && !isKnownContentSource) return null;
+  try {
+    return normalizeHgBaseUrl(candidate);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Resolve the official publish.js address arrays without evaluating script.
+List<String> parseHgPublisherSources(String text) {
+  List<String> array(String name) {
+    final body = RegExp(
+      r'\b(?:var|let|const)\s+' + name + r'\s*=\s*\[([\s\S]*?)\]',
+    ).firstMatch(text)?.group(1);
+    if (body == null) return const [];
+    return RegExp(r'''['"]([^'"]+)['"]''')
+        .allMatches(body.replaceAll(RegExp(r'//[^\n]*'), ''))
+        .map((match) => match.group(1)!)
+        .toList();
+  }
+
+  final result = <String>{};
+  for (final root in array('urls').take(12)) {
+    for (final subdomain in array('subdomains').take(3)) {
+      if (!RegExp(r'^[a-zA-Z0-9-]+$').hasMatch(subdomain)) continue;
+      final normalized = normalizeHgDiscoveredSource(
+        'https://$subdomain.${root.replaceAll(RegExp(r'/+$'), '')}',
+        trustedManifest: true,
+      );
+      if (normalized != null) result.add(normalized);
+    }
+  }
+  return result.toList();
+}
+
+bool _isLocalOrPrivateHost(String host) {
+  if (host == 'localhost' ||
+      host == '0.0.0.0' ||
+      host == '::1' ||
+      host.endsWith('.local')) {
+    return true;
+  }
+  final parts = host.split('.');
+  if (parts.length != 4 || parts.any((part) => int.tryParse(part) == null)) {
+    return false;
+  }
+  final first = int.parse(parts[0]);
+  final second = int.parse(parts[1]);
+  return first == 10 ||
+      first == 127 ||
+      (first == 169 && second == 254) ||
+      (first == 172 && second >= 16 && second <= 31) ||
+      (first == 192 && second == 168);
 }
 
 abstract final class HgRuntimeConfig {
@@ -74,6 +162,20 @@ class HgLoginRequiredException extends HgApiException {
   const HgLoginRequiredException([super.message = '请先登录']);
 }
 
+class HgSourceProbeResult {
+  const HgSourceProbeResult({
+    required this.baseUrl,
+    required this.available,
+    this.latency,
+    this.error,
+  });
+
+  final String baseUrl;
+  final bool available;
+  final Duration? latency;
+  final String? error;
+}
+
 class _CacheEntry<T> {
   const _CacheEntry(this.value, this.expiresAt);
 
@@ -82,12 +184,24 @@ class _CacheEntry<T> {
 }
 
 class HgApi {
-  HgApi({String? baseUrl, Dio? dio, SharedPreferences? preferences})
-    : _persistentCache = preferences == null
-          ? null
-          : HgPersistentCache(preferences),
-      _dio = dio ?? _createDio(baseUrl ?? HgRuntimeConfig.baseUrl) {
-    if (dio == null) HgRuntimeConfig.setBaseUrl(_dio.options.baseUrl);
+  HgApi({
+    String? baseUrl,
+    Dio? dio,
+    SharedPreferences? preferences,
+    HgSourceRouter? sourceRouter,
+  }) : _persistentCache = preferences == null
+           ? null
+           : HgPersistentCache(preferences),
+       _sourceRouter = sourceRouter,
+       _fallbackBaseUrl = normalizeHgBaseUrl(
+         baseUrl ?? sourceRouter?.baseUrl ?? HgRuntimeConfig.baseUrl,
+       ),
+       _dio =
+           dio ??
+           _createDio(
+             baseUrl ?? sourceRouter?.baseUrl ?? HgRuntimeConfig.baseUrl,
+           ) {
+    if (dio == null) HgRuntimeConfig.setBaseUrl(_fallbackBaseUrl);
     // 旧版本曾把短时播放地址持久化 12 小时；启动时清理，避免继续使用过期票据。
     final persistent = _persistentCache;
     if (persistent != null) unawaited(persistent.removePrefix('playback:'));
@@ -95,51 +209,109 @@ class HgApi {
 
   final Dio _dio;
   final HgPersistentCache? _persistentCache;
+  HgSourceRouter? _sourceRouter;
+  String _fallbackBaseUrl;
   String? token;
+
+  /// Called after an authenticated request is rejected by the active source.
+  void Function()? onAuthenticationExpired;
   final Map<String, _CacheEntry<Map<String, dynamic>>> _rawCache = {};
   final Map<String, Future<Map<String, dynamic>>> _rawRefreshing = {};
-  final Map<String, _CacheEntry<List<HgRankItem>>> _rankCache = {};
 
-  String get baseUrl => _dio.options.baseUrl;
+  String get baseUrl => _sourceRouter?.baseUrl ?? _fallbackBaseUrl;
+
+  void setSourceRouter(HgSourceRouter sourceRouter) {
+    _sourceRouter = sourceRouter;
+    setBaseUrl(sourceRouter.baseUrl);
+  }
 
   static Future<void> probeBaseUrl(String value) async {
     final normalized = normalizeHgBaseUrl(value);
+    final result = await probeSource(normalized);
+    if (!result.available) {
+      throw HgApiException(result.error ?? '该地址未返回有效的黄果短剧接口');
+    }
+  }
+
+  static Future<HgSourceProbeResult> probeSource(String value) async {
+    final normalized = normalizeHgBaseUrl(value);
     final dio = Dio(
       BaseOptions(
-        baseUrl: normalized,
-        connectTimeout: const Duration(seconds: 12),
-        receiveTimeout: const Duration(seconds: 20),
-        sendTimeout: const Duration(seconds: 12),
+        connectTimeout: const Duration(seconds: 3),
+        receiveTimeout: const Duration(seconds: 4),
+        sendTimeout: const Duration(seconds: 3),
         headers: {
           'Accept': 'application/json',
           ...hgMediaHeadersFor(normalized),
         },
       ),
     );
-    final api = HgApi(dio: dio);
-    final page = await api.feed(size: 1);
-    if (page.items.isEmpty) {
-      throw const HgApiException('源已连接，但没有返回短剧数据');
+    final timer = Stopwatch()..start();
+    try {
+      final response = await dio.post<String>(
+        '$normalized/api/edge/request',
+        data: {
+          'method': 'GET',
+          'path': '/api/home',
+          'body': '',
+          'content_type': '',
+        },
+        options: Options(responseType: ResponseType.plain),
+      );
+      final body = response.data ?? '';
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(body);
+      } on FormatException {
+        decoded = null;
+      }
+      final data = decoded is Map ? decoded['data'] : null;
+      final validEnvelope =
+          decoded is Map &&
+          decoded['status'] == 1 &&
+          data is Map &&
+          [
+            'banners',
+            'featured',
+            'latest',
+            'cate_rec',
+          ].any((key) => data[key] is List);
+      if ((response.statusCode ?? 0) >= 200 &&
+          (response.statusCode ?? 0) < 300 &&
+          validEnvelope) {
+        return HgSourceProbeResult(
+          baseUrl: normalized,
+          available: true,
+          latency: timer.elapsed,
+        );
+      }
+      return HgSourceProbeResult(
+        baseUrl: normalized,
+        available: false,
+        latency: timer.elapsed,
+        error: '接口响应异常（HTTP ${response.statusCode ?? 0}）',
+      );
+    } on DioException catch (error) {
+      return HgSourceProbeResult(
+        baseUrl: normalized,
+        available: false,
+        latency: timer.elapsed,
+        error: error.message ?? '连接失败',
+      );
+    } finally {
+      dio.close(force: true);
     }
   }
 
   void setBaseUrl(String value) {
     final normalized = normalizeHgBaseUrl(value);
-    if (_dio.options.baseUrl == normalized) return;
+    if (_fallbackBaseUrl == normalized) return;
+    _fallbackBaseUrl = normalized;
     HgRuntimeConfig.setBaseUrl(normalized);
     _dio.options.baseUrl = normalized;
     if (!kIsWeb) {
       _dio.options.headers['Referer'] = '$normalized/';
     }
-    _clearContentCaches();
-  }
-
-  void _clearContentCaches() {
-    _rawCache.clear();
-    _rawRefreshing.clear();
-    _rankCache.clear();
-    final persistent = _persistentCache;
-    if (persistent != null) unawaited(persistent.clearContent());
   }
 
   Future<Map<String, dynamic>> _cachedData(
@@ -209,30 +381,9 @@ class HgApi {
       await _persistentCache?.sizeBytes() ?? 0;
 
   Future<void> clearContentCache() async {
-    _clearContentCaches();
+    _rawCache.clear();
+    _rawRefreshing.clear();
     await _persistentCache?.clearContent();
-  }
-
-  Future<T> _cached<T>(
-    Map<String, _CacheEntry<T>> cache,
-    String key,
-    Duration ttl,
-    Future<T> Function() load,
-  ) {
-    final now = DateTime.now();
-    final existing = cache[key];
-    if (existing != null && existing.expiresAt.isAfter(now)) {
-      return existing.value;
-    }
-    final value = load();
-    cache[key] = _CacheEntry(value, now.add(ttl));
-    value.then<void>(
-      (_) {},
-      onError: (Object _) {
-        if (identical(cache[key]?.value, value)) cache.remove(key);
-      },
-    );
-    return value;
   }
 
   static Dio _createDio(String baseUrl) {
@@ -444,19 +595,25 @@ class HgApi {
       'potential' => 'potential',
       _ => 'hot',
     };
-    return _cached(_rankCache, safeKind, const Duration(minutes: 10), () async {
-      final data = asMap(await _request('GET', '/api/ranks/$safeKind'));
-      final items = data['items'];
-      if (items is! List) return const <HgRankItem>[];
-      return items
-          .whereType<Map>()
-          .map((item) => HgRankItem.fromJson(Map<String, dynamic>.from(item)))
-          .toList(growable: false);
-    });
+    final data = await _cachedData(
+      'rank:$safeKind',
+      const Duration(minutes: 10),
+      () => _request('GET', '/api/ranks/$safeKind'),
+    );
+    final items = data['items'];
+    if (items is! List) return const <HgRankItem>[];
+    return items
+        .whereType<Map>()
+        .map((item) => HgRankItem.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
   }
 
   Future<List<String>> hotSearchWords() async {
-    final data = asMap(await _request('GET', '/api/search/hot'));
+    final data = await _cachedData(
+      'search:hot:words',
+      const Duration(hours: 6),
+      () => _request('GET', '/api/search/hot'),
+    );
     final items = data['items'];
     if (items is! List) return const [];
     return items
@@ -467,7 +624,11 @@ class HgApi {
   }
 
   Future<List<String>> hotSearchTags() async {
-    final data = asMap(await _request('GET', '/api/search/tags/hot'));
+    final data = await _cachedData(
+      'search:hot:tags',
+      const Duration(hours: 6),
+      () => _request('GET', '/api/search/tags/hot'),
+    );
     final items = data['items'];
     if (items is! List) return const [];
     return items
@@ -694,58 +855,69 @@ class HgApi {
   Future<void> _warmStartup() async {
     try {
       await Future<void>.delayed(const Duration(milliseconds: 220));
-      final homeFuture = home();
-      final feedPageFuture = feed(size: 24);
-      final feedPage = await feedPageFuture;
-      await homeFuture;
+      late HgPage<HgVideoCard> feedPage;
+      await Future.wait([
+        home().then<void>((_) {}),
+        feed(size: 24).then((value) => feedPage = value),
+      ]);
 
       // 首屏先完成图片解码与滚动输入，再启动低优先级的专题/文章/详情预热。
       await Future<void>.delayed(const Duration(milliseconds: 1100));
-      final topicFuture = topics(size: 30);
-      final postFuture = posts(size: 24);
-      final categoryFuture = videoCategories();
-      final tagsFuture = tagDirectory();
-      final newestFuture = feed(size: 12, sort: 'new');
-      final hotRankFuture = rank('hot');
-      final recommendRankFuture = rank('recommend');
-      final potentialRankFuture = rank('potential');
-      final dramaFuture = category('ai-duanju', size: 30, sort: 'new');
-      final manjuFuture = category('ai-manju', size: 30, sort: 'new');
-      final gossipFuture = postsByCategory('remen-chigua', size: 24);
-      final reviewFuture = postsByTag('黄果原创', size: 24);
-      final recommendationsFuture = homeRecommendationsPage(size: 20);
-      final hotWordsFuture = hotSearchWords();
-      final hotTagsFuture = hotSearchTags();
-      final topicPage = await topicFuture;
-      final postPage = await postFuture;
-      await categoryFuture;
-      await tagsFuture;
-      final newest = await newestFuture;
-      await hotRankFuture;
-      await recommendRankFuture;
-      await potentialRankFuture;
-      final drama = await dramaFuture;
-      final manju = await manjuFuture;
-      await gossipFuture;
-      await reviewFuture;
-      await recommendationsFuture;
-      await hotWordsFuture;
-      await hotTagsFuture;
-      await Future.wait<void>([
-        prefetchVideoDetails(
-          [
-            ...feedPage.items.take(6),
-            ...newest.items.take(6),
-            ...drama.items.take(4),
-            ...manju.items.take(4),
-          ].map((item) => item.id),
-        ),
-        _prefetchPostDetails(postPage.items.take(3).map((item) => item.id)),
-        _prefetchTopicDetails(topicPage.items.take(3).map((item) => item.slug)),
+      HgPage<HgTopic>? topicPage;
+      HgPage<HgPost>? postPage;
+      HgPage<HgVideoCard>? newest;
+      HgPage<HgVideoCard>? drama;
+      HgPage<HgVideoCard>? manju;
+      await _runWarmBatch([
+        () async => topicPage = await topics(size: 30),
+        () async => postPage = await posts(size: 24),
+        () async => videoCategories(),
+        () async => tagDirectory(),
+        () async => newest = await feed(size: 12, sort: 'new'),
+        () async => rank('hot'),
+        () async => rank('recommend'),
+        () async => rank('potential'),
+        () async => drama = await category('ai-duanju', size: 30, sort: 'new'),
+        () async => manju = await category('ai-manju', size: 30, sort: 'new'),
+        () async => postsByCategory('remen-chigua', size: 24),
+        () async => postsByTag('黄果原创', size: 24),
+        () async => homeRecommendationsPage(size: 20),
+        () async => hotSearchWords(),
+        () async => hotSearchTags(),
       ]);
+      await prefetchVideoDetails(
+        [
+          ...feedPage.items.take(6),
+          ...?newest?.items.take(6),
+          ...?drama?.items.take(4),
+          ...?manju?.items.take(4),
+        ].map((item) => item.id),
+      );
+      await _prefetchPostDetails(
+        (postPage?.items ?? const <HgPost>[]).take(3).map((item) => item.id),
+      );
+      await _prefetchTopicDetails(
+        (topicPage?.items ?? const <HgTopic>[])
+            .take(3)
+            .map((item) => item.slug),
+      );
       // 启动阶段只预热元数据，不在用户尚未进入播放器时预取 HLS 分片。
     } catch (_) {
       // 启动预热失败不影响正常浏览。
+    }
+  }
+
+  Future<void> _runWarmBatch(List<Future<void> Function()> tasks) async {
+    for (var index = 0; index < tasks.length; index += 3) {
+      await Future.wait(
+        tasks.skip(index).take(3).map((task) async {
+          try {
+            await task();
+          } catch (_) {
+            // One unavailable rail must not prevent the remaining startup cache.
+          }
+        }),
+      );
     }
   }
 
@@ -987,18 +1159,20 @@ class HgApi {
   static const _githubSourceManifestUrl = String.fromEnvironment(
     'HG_GITHUB_SOURCE_MANIFEST_URL',
     defaultValue:
-        'https://api.github.com/repos/DearLicy/guomu/contents/assets/data/source_manifest.json',
+        'https://api.github.com/repos/DearLicy/guomu/contents/assets/data/source_manifest.json?ref=main',
   );
 
   static const _githubSourceManifestMirrors = [
-    'https://cdn.jsdelivr.net/gh/DearLicy/guomu@main/assets/source_manifest.json',
-    'https://raw.githubusercontent.com/DearLicy/guomu/main/assets/source_manifest.json',
+    'https://cdn.jsdelivr.net/gh/DearLicy/guomu@main/assets/data/source_manifest.json',
+    'https://raw.githubusercontent.com/DearLicy/guomu/main/assets/data/source_manifest.json',
   ];
 
   static Future<List<String>> discoverSources({
     Iterable<String> seeds = const [],
   }) async {
     final found = <String>{...seeds};
+    final publisherSources = <String>{};
+    final trustedManifestSources = <String>{};
     final dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 3),
@@ -1017,6 +1191,7 @@ class HgApi {
         if (body.isEmpty) return;
         if (path.endsWith('publish.js')) {
           _collectSourceText(body, found);
+          publisherSources.addAll(parseHgPublisherSources(body));
           return;
         }
         dynamic decoded;
@@ -1041,10 +1216,10 @@ class HgApi {
     }
 
     await Future.wait(_sourceResolvers.map(probeResolver));
-    for (final manifestUrl in <String>{
+    for (final manifestUrl in <String>[
       _githubSourceManifestUrl,
       ..._githubSourceManifestMirrors,
-    }) {
+    ]) {
       try {
         final response = await dio.get<String>(
           manifestUrl,
@@ -1057,44 +1232,66 @@ class HgApi {
             },
           ),
         );
-        final body = response.data ?? '';
-        if (body.isNotEmpty) {
-          _collectSourceText(body, found);
-          break;
+        final body = response.data?.trim() ?? '';
+        if (body.isEmpty) continue;
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(body);
+        } on FormatException {
+          decoded = null;
+        }
+        if (decoded is Map && decoded['content'] is String) {
+          final encoding = asText(decoded['encoding']).toLowerCase();
+          if (encoding == 'base64') {
+            try {
+              final encoded = (decoded['content'] as String).replaceAll(
+                RegExp(r'\s+'),
+                '',
+              );
+              decoded = jsonDecode(utf8.decode(base64Decode(encoded)));
+            } on FormatException {
+              decoded = null;
+            }
+          }
+        }
+        if (decoded is Map && decoded['sources'] is List) {
+          final sources = (decoded['sources'] as List)
+              .whereType<String>()
+              .map((source) => source.trim())
+              .where((source) => source.isNotEmpty)
+              .toList(growable: false);
+          if (sources.isNotEmpty) {
+            trustedManifestSources.addAll(sources);
+            break;
+          }
+        } else if (!manifestUrl.contains('api.github.com')) {
+          // Some static mirrors may serve a bare JSON manifest without a wrapper.
+          continue;
         }
       } catch (_) {
         // GitHub Raw 不可达时继续尝试 jsDelivr；两者都失败仍保留官方发布页与内置源。
       }
     }
     final result = <String>[];
-    for (final value in found) {
-      final normalized = _normalizeDiscoveredSource(value);
+    for (final value in trustedManifestSources) {
+      final normalized = normalizeHgDiscoveredSource(
+        value,
+        trustedManifest: true,
+      );
+      if (normalized != null && !result.contains(normalized)) {
+        result.add(normalized);
+      }
+    }
+    for (final value in {...found, ...publisherSources}) {
+      final normalized = normalizeHgDiscoveredSource(
+        value,
+        trustedManifest: publisherSources.contains(value),
+      );
       if (normalized != null && !result.contains(normalized)) {
         result.add(normalized);
       }
     }
     return result;
-  }
-
-  static Future<bool> probeSource(String value) async {
-    final base = normalizeHgBaseUrl(value);
-    final dio = Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 2),
-        receiveTimeout: const Duration(seconds: 3),
-        headers: {'Accept': 'application/json', ...hgMediaHeadersFor(base)},
-      ),
-    );
-    try {
-      final response = await dio.get<String>(
-        '$base/api/site/entries',
-        options: Options(responseType: ResponseType.plain),
-      );
-      final body = response.data ?? '';
-      return body.contains('"entries"') || body.contains('"data"');
-    } catch (_) {
-      return false;
-    }
   }
 
   static void _collectSourceJson(dynamic value, Set<String> found) {
@@ -1127,40 +1324,6 @@ class HgApi {
     }
   }
 
-  static String? _normalizeDiscoveredSource(String value) {
-    var candidate = value.trim();
-    if (candidate.isEmpty) return null;
-    if (candidate.contains('{') || candidate.contains('}')) return null;
-    if (!candidate.contains('://')) candidate = 'https://$candidate';
-    final uri = Uri.tryParse(candidate);
-    if (uri == null || uri.host.isEmpty) return null;
-    final host = uri.host.toLowerCase();
-    if (host == 'huangguoai.ai' ||
-        host == 'hgai16.com' ||
-        host.endsWith('.pages.dev')) {
-      return null;
-    }
-    if (host == 'bmikbxhi.cc' ||
-        host == 'ixgukkejj.cc' ||
-        host == 'fvlelaqt.cc') {
-      return null;
-    }
-    final isContentSource =
-        host == 'huangguoai.com' ||
-        host.endsWith('.huangguoai.com') ||
-        host.contains('drleao.cn') ||
-        host.contains('bmikbxhi.cc') ||
-        host.contains('fvlelaqt.cc') ||
-        host.contains('psmvjggyd.cc') ||
-        host.contains('ixgukkejj.cc');
-    if (!isContentSource) return null;
-    try {
-      return normalizeHgBaseUrl(candidate);
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<dynamic> _request(String method, String path, {Object? body}) async {
     final encodedBody = body == null
         ? ''
@@ -1171,83 +1334,106 @@ class HgApi {
       'body': encodedBody,
       'content_type': body == null ? '' : 'application/json',
     };
-
-    final requestVariants = <String>[];
-    if (kIsWeb) {
-      final proxyBase = _configuredWebProxyUrl.trim().isEmpty
-          ? Uri.base.origin
-          : _configuredWebProxyUrl.trim().replaceFirst(RegExp(r'/+$'), '');
-      requestVariants.add(
-        '$proxyBase/api/edge/request?source=${Uri.encodeQueryComponent(baseUrl)}',
-      );
-    }
-    requestVariants.add('/api/edge/request');
+    final isReadOnly = method.toUpperCase() == 'GET';
+    final sources = (_sourceRouter?.rankedSources ?? [baseUrl])
+        .where((source) => source.isNotEmpty)
+        .take(isReadOnly ? 4 : 1)
+        .toList(growable: false);
     Object? lastError;
-    for (var attempt = 0; attempt < 3; attempt++) {
-      for (final requestUrl in requestVariants) {
-        try {
-          // 原生包和 Web 都优先直接请求用户当前选择的数据源；Web 跨域失败时才使用本地预览代理兜底。
-          final response = await _dio.post<dynamic>(
-            requestUrl,
-            data: envelope,
-            options: Options(
-              validateStatus: (_) => true,
-              headers: {
-                if (token != null && token!.isNotEmpty)
-                  'Authorization': 'Bearer $token',
-              },
-            ),
-          );
-          return _decodeResponse(response);
-        } on DioException catch (error) {
-          lastError = error;
-          // 继续尝试下一个传输方式；Web 直连被 CORS 拦截时回退到当前预览代理。
+
+    for (final source in sources) {
+      final stopwatch = Stopwatch()..start();
+      try {
+        final result = await _requestOnSource(
+          source,
+          envelope,
+          allowTransportRetry: isReadOnly,
+        );
+        await _sourceRouter?.recordSuccess(
+          source,
+          stopwatch.elapsed,
+          promote: isReadOnly,
+        );
+        if (_sourceRouter == null && source != _fallbackBaseUrl) {
+          setBaseUrl(source);
         }
+        return result;
+      } on DioException catch (error) {
+        lastError = error;
+        await _sourceRouter?.recordFailure(source);
+        if (!isReadOnly || !_isRetryable(error)) break;
+      } on HgApiException catch (error) {
+        lastError = error;
+        final retryable =
+            isReadOnly && error.statusCode != null && error.statusCode! >= 500;
+        if (!retryable) rethrow;
+        await _sourceRouter?.recordFailure(source);
       }
-      if (kIsWeb) {
-        try {
-          final proxyDio = Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 8),
-              receiveTimeout: const Duration(seconds: 20),
-            ),
-          );
-          final proxyBase = _configuredWebProxyUrl.trim().isEmpty
-              ? Uri.base.origin
-              : _configuredWebProxyUrl.trim().replaceFirst(RegExp(r'/+$'), '');
-          final proxyUrl =
-              '$proxyBase/api/edge/request?source=${Uri.encodeQueryComponent(baseUrl)}';
-          final response = await proxyDio.post<dynamic>(
-            proxyUrl,
-            data: envelope,
-            options: Options(
-              validateStatus: (_) => true,
-              headers: {
-                if (token != null && token!.isNotEmpty)
-                  'Authorization': 'Bearer $token',
-              },
-            ),
-          );
-          return _decodeResponse(response);
-        } on DioException catch (error) {
-          lastError = error;
-        }
-      }
-      if (attempt == 2 ||
-          (lastError is DioException && !_isRetryable(lastError))) {
-        break;
-      }
-      await Future<void>.delayed(Duration(milliseconds: 350 * (attempt + 1)));
     }
+
+    if (lastError is HgApiException) throw lastError;
     if (lastError is DioException) {
       throw HgApiException(_networkMessage(lastError));
     }
     throw const HgApiException('请求失败，请检查网络');
   }
 
+  Future<dynamic> _requestOnSource(
+    String source,
+    Map<String, dynamic> envelope, {
+    required bool allowTransportRetry,
+  }) async {
+    final normalized = normalizeHgBaseUrl(source);
+    final requestVariants = <String>[];
+    if (kIsWeb) {
+      final proxyBase = _configuredWebProxyUrl.trim().isEmpty
+          ? Uri.base.origin
+          : _configuredWebProxyUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+      requestVariants.add(
+        '$proxyBase/api/edge/request?source=${Uri.encodeQueryComponent(normalized)}',
+      );
+    }
+    if (allowTransportRetry || requestVariants.isEmpty) {
+      requestVariants.add('$normalized/api/edge/request');
+    }
+    final maxAttempts = allowTransportRetry ? 2 : 1;
+    Object? lastError;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      for (final requestUrl in requestVariants) {
+        try {
+          final response = await _dio.post<dynamic>(
+            requestUrl,
+            data: envelope,
+            options: Options(
+              validateStatus: (_) => true,
+              headers: {
+                if (!kIsWeb) 'Referer': '$normalized/',
+                if (token != null && token!.isNotEmpty)
+                  'Authorization': 'Bearer $token',
+              },
+            ),
+          );
+          return _decodeResponse(response);
+        } on DioException catch (error) {
+          lastError = error;
+        }
+      }
+      if (attempt + 1 >= maxAttempts ||
+          (lastError is DioException && !_isRetryable(lastError))) {
+        break;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 250 * (attempt + 1)));
+    }
+    if (lastError is DioException) throw lastError;
+    throw const HgApiException('请求失败，请检查网络');
+  }
+
   dynamic _decodeResponse(Response<dynamic> response) {
     final status = response.statusCode ?? 0;
     if (status == 401 || status == 403) {
+      if (token != null && token!.isNotEmpty) {
+        onAuthenticationExpired?.call();
+      }
       throw const HgLoginRequiredException('登录状态已失效，请重新登录');
     }
     if (status < 200 || status >= 300) {

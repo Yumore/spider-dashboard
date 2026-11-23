@@ -49,9 +49,32 @@ Color colorFromHex(String value, {Color fallback = const Color(0xFFFF6B3D)}) {
 
 void showHgSnack(BuildContext context, String message) {
   if (!context.mounted) return;
+  final theme = Theme.of(context);
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            color: theme.colorScheme.onInverseSurface,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: theme.colorScheme.inverseSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: EdgeInsets.fromLTRB(
+          24,
+          0,
+          24,
+          MediaQuery.viewInsetsOf(context).bottom + 28,
+        ),
+        elevation: 0,
+        duration: const Duration(milliseconds: 1800),
+      ),
+    );
 }
 
 String formatBytes(int bytes) {

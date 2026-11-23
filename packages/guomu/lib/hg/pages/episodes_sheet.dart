@@ -22,6 +22,7 @@ Future<int?> showEpisodesSheet(
     context,
     childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.46),
+    initialSize: MediaQuery.sizeOf(context).height < 500 ? 0.9 : 0.56,
     builder: (_) =>
         _EpisodesSheet(detail: detail, currentEpisode: currentEpisode),
   );
@@ -42,6 +43,8 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
   late int _segment;
   late int _tab;
   bool _saving = false;
+  final _selectedCell = GlobalKey();
+  final _selectedRange = GlobalKey();
 
   List<HgEpisode> get _episodes {
     if (widget.detail.episodes.isNotEmpty) return widget.detail.episodes;
@@ -61,21 +64,36 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
   void initState() {
     super.initState();
     _tab = 1;
-    _segment = ((widget.currentEpisode - 1) ~/ _pageSize).clamp(
-      0,
-      _segmentCount - 1,
+    final index = _episodes.indexWhere(
+      (episode) => episode.number == widget.currentEpisode,
     );
+    _segment = (index < 0 ? 0 : index ~/ _pageSize).clamp(0, _segmentCount - 1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final key in [_selectedRange, _selectedCell]) {
+        final target = key.currentContext;
+        if (target != null) {
+          Scrollable.ensureVisible(
+            target,
+            alignment: 1,
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          );
+        }
+      }
+    });
   }
 
   Future<void> _toggleFavorite() async {
     if (_saving) return;
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.mediumImpact();
-    setState(() => _saving = true);
-    final auth = context.read<AuthController>();
+    if (!mounted) return;
     try {
-      await auth.toggleFavorite(widget.detail.id);
+      await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        HapticFeedback.mediumImpact();
+        setState(() => _saving = true);
+        await context.read<AuthController>().toggleFavorite(widget.detail.id);
+        return true;
+      });
     } catch (error) {
       if (mounted) showHgSnack(context, cleanError(error));
     } finally {
@@ -87,199 +105,175 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
   Widget build(BuildContext context) {
     final episodes = _episodes;
     final total = episodes.length;
-    final width = MediaQuery.sizeOf(context).width;
-    final auth = context.watch<AuthController>();
-    final favorite = auth.isFavorite(widget.detail.id);
+    final favorite = context.watch<AuthController>().isFavorite(
+      widget.detail.id,
+    );
     final start = _segment * _pageSize;
     final end = (start + _pageSize).clamp(0, total);
     final pageItems = episodes.sublist(start, end);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: context.hgSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: SizedBox(
-                    width: 56,
-                    height: 74,
-                    child: HgCoverImage(
-                      url: widget.detail.cover,
-                      title: widget.detail.title,
+    return Material(
+      color: context.hgSurface,
+      child: SafeArea(
+        top: false,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 12, 14),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 44,
+                      height: 58,
+                      child: HgCoverImage(
+                        url: widget.detail.cover,
+                        title: widget.detail.title,
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.detail.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: context.hgOnSurface,
-                          fontSize: 18,
-                          height: 1.25,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        '第 ${widget.currentEpisode} 集 · 全 $total 集',
-                        style: TextStyle(
-                          color: context.hgMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                _SheetTab(
-                  label: '简介',
-                  selected: _tab == 0,
-                  onTap: () => setState(() => _tab = 0),
-                ),
-                const SizedBox(width: 28),
-                _SheetTab(
-                  label: '选集',
-                  selected: _tab == 1,
-                  onTap: () => setState(() => _tab = 1),
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: context.hgLine),
-          Expanded(
-            child: _tab == 0
-                ? _IntroPane(detail: widget.detail)
-                : Column(
-                    children: [
-                      if (_segmentCount > 1)
-                        SizedBox(
-                          height: 54,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _segmentCount,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 26),
-                            itemBuilder: (context, index) {
-                              final from = index * _pageSize + 1;
-                              final to = ((index + 1) * _pageSize).clamp(
-                                0,
-                                total,
-                              );
-                              return _SegmentTab(
-                                label: '$from-$to',
-                                selected: _segment == index,
-                                onTap: () => setState(() => _segment = index),
-                              );
-                            },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.detail.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.hgOnSurface,
+                              fontSize: 16,
+                              height: 1.3,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      Expanded(
-                        child: pageItems.isEmpty
-                            ? const Center(child: Text('暂无可选集数'))
-                            : GridView.builder(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  10,
-                                  20,
-                                  20,
-                                ),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: width >= 560 ? 8 : 6,
-                                      crossAxisSpacing: 8,
-                                      mainAxisSpacing: 8,
-                                      childAspectRatio: 1.23,
-                                    ),
-                                itemCount: pageItems.length,
-                                itemBuilder: (context, index) {
-                                  final episode = pageItems[index];
-                                  final selected =
-                                      episode.number == widget.currentEpisode;
-                                  return _EpisodeCell(
-                                    episode: episode.number,
-                                    selected: selected,
-                                    onTap: () => Navigator.of(
-                                      context,
-                                    ).pop(episode.number),
-                                  );
-                                },
-                              ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '第 ${widget.currentEpisode} 集 · ${widget.detail.episodeLabel}',
+                            style: TextStyle(
+                              color: context.hgMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-          ),
-          SafeArea(
-            top: false,
-            minimum: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: FilledButton.icon(
-                onPressed: _saving ? null : _toggleFavorite,
-                style: FilledButton.styleFrom(
-                  backgroundColor: favorite
-                      ? HgColors.orange.withValues(
-                          alpha: Theme.of(context).brightness == Brightness.dark
-                              ? 0.2
-                              : 0.09,
-                        )
-                      : HgColors.orange,
-                  foregroundColor: favorite ? HgColors.orange : Colors.white,
-                  disabledBackgroundColor: HgColors.orange.withValues(
-                    alpha: 0.45,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                icon: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        favorite
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        size: 21,
-                      ),
-                label: Text(
-                  favorite ? '已收藏' : '收藏',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      tooltip: favorite ? '取消追剧' : '追剧',
+                      onPressed: _saving ? null : _toggleFavorite,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              favorite
+                                  ? Icons.star_rounded
+                                  : Icons.star_border_rounded,
+                              color: favorite
+                                  ? HgColors.orange
+                                  : context.hgOnSurface,
+                            ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    _SheetTab(
+                      label: '简介',
+                      selected: _tab == 0,
+                      onTap: () => setState(() => _tab = 0),
+                    ),
+                    const SizedBox(width: 28),
+                    _SheetTab(
+                      label: '选集',
+                      selected: _tab == 1,
+                      onTap: () => setState(() => _tab = 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Divider(height: 1, color: context.hgLine),
+            ),
+            if (_tab == 0)
+              SliverToBoxAdapter(child: _IntroPane(detail: widget.detail))
+            else ...[
+              if (_segmentCount > 1)
+                SliverToBoxAdapter(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: List.generate(_segmentCount, (index) {
+                        final first = index * _pageSize;
+                        final last =
+                            ((index + 1) * _pageSize).clamp(0, total) - 1;
+                        return Padding(
+                          key: index == _segment ? _selectedRange : null,
+                          padding: const EdgeInsets.only(right: 22),
+                          child: _SegmentTab(
+                            label:
+                                '${episodes[first].number}-${episodes[last].number}',
+                            selected: _segment == index,
+                            onTap: () => setState(() => _segment = index),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ),
+              SliverToBoxAdapter(
+                child: pageItems.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          '暂无可选集数',
+                          style: TextStyle(color: context.hgMuted),
+                        ),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) => GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount:
+                                    ((constraints.maxWidth - 32) / 56)
+                                        .floor()
+                                        .clamp(3, 8),
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                mainAxisExtent: 48,
+                              ),
+                          itemCount: pageItems.length,
+                          itemBuilder: (context, index) {
+                            final episode = pageItems[index];
+                            final selected =
+                                episode.number == widget.currentEpisode;
+                            return _EpisodeCell(
+                              key: selected ? _selectedCell : null,
+                              episode: episode.number,
+                              selected: selected,
+                              onTap: () =>
+                                  Navigator.of(context).pop(episode.number),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -344,16 +338,19 @@ class _SegmentTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return HgPressable(
       onTap: onTap,
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? context.hgOnSurface : context.hgMuted,
-            fontSize: 16,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      semanticLabel: label,
+      child: SizedBox(
+        height: 48,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? context.hgOnSurface : context.hgMuted,
+              fontSize: 16,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
         ),
       ),
@@ -363,6 +360,7 @@ class _SegmentTab extends StatelessWidget {
 
 class _EpisodeCell extends StatelessWidget {
   const _EpisodeCell({
+    super.key,
     required this.episode,
     required this.selected,
     required this.onTap,
@@ -404,48 +402,51 @@ class _IntroPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-      children: [
-        if (detail.description.trim().isNotEmpty)
-          Text(
-            detail.description,
-            style: TextStyle(
-              color: context.hgOnSurface,
-              fontSize: 14,
-              height: 1.75,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (detail.description.trim().isNotEmpty)
+            Text(
+              detail.description,
+              style: TextStyle(
+                color: context.hgOnSurface,
+                fontSize: 14,
+                height: 1.75,
+              ),
             ),
-          ),
-        if (detail.tags.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: detail.tags
-                .take(10)
-                .map(
-                  (tag) => HgTagChip(
-                    label: tag,
-                    compact: true,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => TagFeedPage(
-                          tag: HgTag(
-                            id: 0,
-                            name: tag,
-                            slug: '',
-                            categoryId: 0,
-                            categoryName: '题材标签',
+          if (detail.tags.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: detail.tags
+                  .take(10)
+                  .map(
+                    (tag) => HgTagChip(
+                      label: tag,
+                      compact: true,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => TagFeedPage(
+                            tag: HgTag(
+                              id: 0,
+                              name: tag,
+                              slug: '',
+                              categoryId: 0,
+                              categoryName: '题材标签',
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                )
-                .toList(growable: false),
-          ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

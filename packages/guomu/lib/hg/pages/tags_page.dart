@@ -204,8 +204,8 @@ class _TagsPageState extends State<TagsPage> {
                         showingHot
                             ? '最近被频繁搜索和浏览的题材'
                             : group?.intro ?? '按题材分类浏览短剧',
-                        style: const TextStyle(
-                          color: Color(0xFF85858A),
+                        style: TextStyle(
+                          color: context.hgMuted,
                           fontSize: 11.5,
                           height: 1.5,
                         ),
@@ -326,12 +326,12 @@ class _TagTile extends StatelessWidget {
               if (tag.hotScore > 0)
                 Text(
                   formatCount(tag.hotScore),
-                  style: const TextStyle(color: Color(0xFFA0A0A4), fontSize: 9),
+                  style: TextStyle(color: context.hgMuted, fontSize: 9),
                 )
               else
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: Color(0xFFC1C0C2),
+                  color: context.hgMuted,
                   size: 17,
                 ),
             ],

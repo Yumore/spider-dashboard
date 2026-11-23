@@ -397,7 +397,7 @@ class _SettingsPageState extends State<SettingsPage> {
               _SettingsRow(
                 leading: const _RowIcon(Icons.code_rounded),
                 title: '关于果幕',
-                subtitle: '版本信息、数据边界与技术说明',
+                subtitle: '产品定位、数据来源与隐私说明',
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -763,6 +763,8 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
   late final TextEditingController _controller;
   bool _adding = false;
   bool _refreshing = false;
+  bool _speedTesting = false;
+  bool _showManual = false;
   String? _message;
 
   @override
@@ -786,9 +788,8 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
     });
     try {
       final sourceController = context.read<SourceController>();
-      final normalized = await sourceController.addSource(value);
+      await sourceController.addSource(value);
       if (!mounted) return;
-      context.read<HgApi>().setBaseUrl(normalized);
       _controller.clear();
       setState(() => _message = '已添加，点击地址即可切换');
     } on FormatException catch (error) {
@@ -808,7 +809,7 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
     });
     try {
       final sourceController = context.read<SourceController>();
-      await sourceController.startAutoDiscovery();
+      await sourceController.startAutoDiscovery(force: true);
       if (!mounted) return;
       setState(() => _message = '已同步 ${sourceController.sources.length} 个数据源');
     } catch (error) {
@@ -820,12 +821,46 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
 
   Future<void> _select(String value) async {
     final sourceController = context.read<SourceController>();
+    await sourceController.setAutomaticSelection(false);
     await sourceController.selectSource(value);
     if (!mounted) return;
     context.read<HgApi>().setBaseUrl(sourceController.baseUrl);
-    HgCoverRepository.instance.clear();
-    await context.read<HgApi>().clearContentCache();
-    if (mounted) setState(() => _message = '已切换到 ${sourceController.baseUrl}');
+    if (mounted) setState(() => _message = '已使用这条线路，可开启自动选择随网络切换');
+  }
+
+  Future<void> _speedTest() async {
+    if (_speedTesting) return;
+    setState(() {
+      _speedTesting = true;
+      _message = null;
+    });
+    try {
+      final sourceController = context.read<SourceController>();
+      await sourceController.probeSources();
+      if (!mounted) return;
+      setState(() {
+        _message = sourceController.needsManual
+            ? '暂未找到可用线路，请同步最新地址或手动添加'
+            : sourceController.automaticSelection
+            ? '测速完成，已选择最佳线路'
+            : '测速完成，保持手动选择的线路';
+      });
+    } catch (error) {
+      if (mounted) setState(() => _message = cleanError(error));
+    } finally {
+      if (mounted) setState(() => _speedTesting = false);
+    }
+  }
+
+  String _checkedLabel(DateTime? value) {
+    if (value == null) return '尚未检测';
+    final now = DateTime.now();
+    if (now.year == value.year &&
+        now.month == value.month &&
+        now.day == value.day) {
+      return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')} 检测';
+    }
+    return '${value.month}月${value.day}日检测';
   }
 
   Future<void> _remove(String value) async {
@@ -839,155 +874,275 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final source = context.watch<SourceController>();
-    final theme = Theme.of(context);
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: inset),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(20, 9, 20, 24),
-            children: [
-              const SizedBox(height: 20),
-              Row(
+    final busy =
+        _refreshing ||
+        _speedTesting ||
+        source.isDiscovering ||
+        source.isProbing;
+    final health = [...source.sourceHealth]
+      ..sort((a, b) {
+        if (a.baseUrl == source.baseUrl) return -1;
+        if (b.baseUrl == source.baseUrl) return 1;
+        return b.score.compareTo(a.score);
+      });
+    final active = health
+        .where((item) => item.baseUrl == source.baseUrl)
+        .firstOrNull;
+    final available = health
+        .where(
+          (item) =>
+              item.hasBeenChecked &&
+              !item.isCoolingDown &&
+              item.consecutiveFailures == 0,
+        )
+        .length;
+    return Material(
+      color: context.hgSurface,
+      child: SafeArea(
+        top: false,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            24 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          children: [
+            Text(
+              '连接与数据源',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.recovery
+                  ? '暂时无法连接，试试同步最新地址或添加可用线路。'
+                  : '自动同步最新地址，播放与浏览由你的设备直连。',
+              style: TextStyle(
+                color: context.hgMuted,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 22),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: context.hgSurfaceMuted,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      '数据源',
-                      style: TextStyle(
-                        color: context.hgOnSurface,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                  Row(
+                    children: [
+                      Icon(
+                        source.needsManual
+                            ? Icons.wifi_off_rounded
+                            : Icons.check_circle_outline_rounded,
+                        color: source.needsManual
+                            ? Theme.of(context).colorScheme.error
+                            : context.hgOnSurface,
+                        size: 20,
                       ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '当前连接',
+                          style: TextStyle(
+                            color: context.hgMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      if (active?.latencyMs != null)
+                        Text(
+                          '${active!.latencyMs} ms',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    Uri.tryParse(source.baseUrl)?.host ?? source.baseUrl,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.hgOnSurface,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
                     ),
                   ),
+                  const SizedBox(height: 5),
                   Text(
-                    '${source.sources.length} 个',
-                    style: TextStyle(color: context.hgMuted, fontSize: 11),
+                    active == null
+                        ? '等待连接检测'
+                        : '${active.statusLabel} · ${_checkedLabel(active.lastCheckedAt)}',
+                    style: TextStyle(color: context.hgMuted, fontSize: 12),
                   ),
                 ],
               ),
-              const SizedBox(height: 5),
-              Text(
-                widget.recovery
-                    ? '当前地址都无法连接。请手动填写一个可用地址，或重新获取官方线路。'
-                    : '客户端会通过本机网络从官方发布页和 GitHub 清单同步可用线路，也可以手动添加。',
-                style: TextStyle(
-                  color: widget.recovery
-                      ? const Color(0xFFC64F45)
-                      : context.hgMuted,
-                  fontSize: 11.5,
-                  height: 1.5,
-                ),
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                '自动选择最佳线路',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 15),
-              OutlinedButton.icon(
-                onPressed: _refreshing ? null : _refresh,
-                icon: _refreshing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync_rounded, size: 18),
-                label: Text(_refreshing ? '正在同步…' : '自动获取最新地址'),
+              subtitle: const Text(
+                '根据本机连接质量选择，异常时自动切换',
+                style: TextStyle(fontSize: 12),
               ),
-              const SizedBox(height: 16),
-              ...source.sources.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Material(
-                    color: item == source.baseUrl
-                        ? context.hgSurfaceHigh
-                        : context.hgSurfaceMuted,
-                    borderRadius: BorderRadius.circular(13),
-                    child: HgInkWell(
-                      onTap: () => _select(item),
-                      borderRadius: BorderRadius.circular(13),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(13, 11, 8, 11),
-                        child: Row(
-                          children: [
-                            Icon(
-                              item == source.baseUrl
-                                  ? Icons.radio_button_checked_rounded
-                                  : Icons.radio_button_off_rounded,
-                              color: item == source.baseUrl
-                                  ? HgColors.orange
-                                  : const Color(0xFF9A9A9E),
-                              size: 19,
-                            ),
-                            const SizedBox(width: 9),
-                            Expanded(
-                              child: Text(
-                                item,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: context.hgOnSurface,
-                                  fontSize: 12,
-                                  fontWeight: item == source.baseUrl
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: source.sources.length <= 1
-                                  ? null
-                                  : () => _remove(item),
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                size: 17,
-                                color: Color(0xFF9A9A9E),
-                              ),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
-                        ),
-                      ),
+              value: source.automaticSelection,
+              onChanged: source.setAutomaticSelection,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: busy ? null : _speedTest,
+                    icon: const Icon(Icons.speed_rounded, size: 18),
+                    label: Text(
+                      _speedTesting || source.isProbing ? '测速中' : '线路测速',
                     ),
                   ),
                 ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: busy ? null : _refresh,
+                    icon: const Icon(Icons.sync_rounded, size: 18),
+                    label: Text(
+                      _refreshing || source.isDiscovering ? '同步中' : '同步地址',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (busy)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(minHeight: 2),
               ),
-              const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '可选线路',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+                Text(
+                  '$available 可用 / ${health.length} 条',
+                  style: TextStyle(color: context.hgMuted, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final item in health) ...[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                minVerticalPadding: 12,
+                title: Text(
+                  Uri.tryParse(item.baseUrl)?.host ?? item.baseUrl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(
+                    [
+                      item.statusLabel,
+                      if (item.latencyMs != null) '${item.latencyMs} ms',
+                      if (item.baseUrl == source.baseUrl) '正在使用',
+                    ].join(' · '),
+                    style: TextStyle(
+                      color: item.isCoolingDown
+                          ? Theme.of(context).colorScheme.error
+                          : context.hgMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                onTap: () => _select(item.baseUrl),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (item.baseUrl == source.baseUrl)
+                      const Icon(Icons.check_rounded, size: 20),
+                    IconButton(
+                      tooltip: '线路选项',
+                      icon: const Icon(Icons.more_horiz_rounded, size: 21),
+                      onPressed: source.sources.length <= 1
+                          ? null
+                          : () async {
+                              final remove = await showHgConfirmSheet(
+                                context,
+                                title: '移除这条线路？',
+                                message: '移除后不影响其他线路，后续同步可能再次发现该地址。',
+                                confirmLabel: '移除',
+                                destructive: true,
+                                icon: Icons.link_off_rounded,
+                              );
+                              if (remove && mounted) {
+                                await _remove(item.baseUrl);
+                              }
+                            },
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: context.hgLine),
+            ],
+            const SizedBox(height: 16),
+            if (!_showManual && !widget.recovery)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _showManual = true),
+                  icon: const Icon(Icons.add_rounded, size: 19),
+                  label: const Text('添加自定义地址'),
+                ),
+              )
+            else ...[
               TextField(
                 controller: _controller,
                 keyboardType: TextInputType.url,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _add(),
                 decoration: const InputDecoration(
-                  hintText: '手动填写 https://example.com',
+                  labelText: '自定义地址',
+                  hintText: 'https://example.com',
                   prefixIcon: Icon(Icons.link_rounded),
                 ),
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 10),
               FilledButton(
                 onPressed: _adding ? null : _add,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(46),
-                  backgroundColor: HgColors.ink,
-                ),
-                child: Text(_adding ? '添加中…' : '添加数据源'),
+                child: Text(_adding ? '验证中…' : '验证并添加'),
               ),
-              if (_message != null) ...[
-                const SizedBox(height: 12),
-                Text(
+            ],
+            if (_message != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
                   _message!,
-                  style: const TextStyle(
-                    color: Color(0xFF77777C),
-                    fontSize: 11,
+                  style: TextStyle(
+                    color: context.hgMuted,
+                    fontSize: 12,
+                    height: 1.5,
                   ),
                 ),
-              ],
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

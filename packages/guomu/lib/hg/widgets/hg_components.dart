@@ -93,11 +93,13 @@ class HgVideoGridCard extends StatelessWidget {
     required this.video,
     required this.onTap,
     this.hero = false,
+    this.heroTag,
   });
 
   final HgVideoCard video;
   final VoidCallback onTap;
   final bool hero;
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +121,7 @@ class HgVideoGridCard extends StatelessWidget {
                   url: video.cover,
                   title: video.title,
                   borderRadius: radius,
+                  heroTag: heroTag,
                 ),
                 DecoratedBox(
                   decoration: BoxDecoration(
@@ -150,27 +153,6 @@ class HgVideoGridCard extends StatelessWidget {
                     ),
                   ),
                 Positioned(
-                  left: 11,
-                  right: 11,
-                  bottom: 72,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          video.episodeLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
                   left: 13,
                   right: 12,
                   bottom: hero ? 16 : 12,
@@ -194,7 +176,7 @@ class HgVideoGridCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              video.author?.name ?? video.episodeLabel,
+                              video.episodeLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -203,18 +185,20 @@ class HgVideoGridCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          Text(
-                            formatCount(video.hot),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 10.5,
+                          if (video.hot > 0) ...[
+                            const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 18,
                             ),
-                          ),
+                            Text(
+                              formatCount(video.hot),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10.5,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -234,10 +218,12 @@ class HgVideoMasonryCard extends StatelessWidget {
     super.key,
     required this.video,
     required this.onTap,
+    this.heroTag,
   });
 
   final HgVideoCard video;
   final VoidCallback onTap;
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +251,11 @@ class HgVideoMasonryCard extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        HgCoverImage(url: video.cover, title: video.title),
+                        HgCoverImage(
+                          url: video.cover,
+                          title: video.title,
+                          heroTag: heroTag,
+                        ),
                         const DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -374,11 +364,24 @@ class HgVideoRailCard extends StatelessWidget {
     required this.video,
     required this.onTap,
     this.width = 142,
+    this.heroTag,
   });
 
   final HgVideoCard video;
   final VoidCallback onTap;
   final double width;
+  final Object? heroTag;
+
+  static double heightFor(BuildContext context, {double width = 142}) {
+    final scaler = MediaQuery.textScalerOf(context);
+    return (width / 0.72 +
+            8 +
+            scaler.scale(13) * 1.3 +
+            4 +
+            scaler.scale(10) * 1.4 +
+            4)
+        .ceilToDouble();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +407,11 @@ class HgVideoRailCard extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        HgCoverImage(url: video.cover, title: video.title),
+                        HgCoverImage(
+                          url: video.cover,
+                          title: video.title,
+                          heroTag: heroTag,
+                        ),
                         const DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -461,7 +468,7 @@ class HgVideoRailCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
-                    height: 1.25,
+                    height: 1.3,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
                   ),
@@ -473,7 +480,7 @@ class HgVideoRailCard extends StatelessWidget {
                       : video.tags.first,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: muted, fontSize: 10),
+                  style: TextStyle(color: muted, fontSize: 10, height: 1.4),
                 ),
               ],
             ),
@@ -645,45 +652,54 @@ class HgEmptyState extends StatelessWidget {
     final muted = Theme.of(
       context,
     ).colorScheme.onSurface.withValues(alpha: 0.5);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 260;
+        return Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 16 : 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: compact ? 40 : 72,
+                    height: compact ? 40 : 72,
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(compact ? 14 : 24),
+                    ),
+                    child: Icon(icon, color: muted, size: compact ? 23 : 32),
+                  ),
+                  SizedBox(height: compact ? 10 : 18),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (message != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      message!,
+                      style: TextStyle(color: muted, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (actionLabel != null) ...[
+                    SizedBox(height: compact ? 10 : 18),
+                    FilledButton.tonal(
+                      onPressed: onAction,
+                      child: Text(actionLabel!),
+                    ),
+                  ],
+                ],
               ),
-              child: Icon(icon, color: muted, size: 32),
             ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            if (message != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                message!,
-                style: TextStyle(color: muted, fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            if (actionLabel != null) ...[
-              const SizedBox(height: 18),
-              FilledButton.tonal(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -718,20 +734,51 @@ class HgLoading extends StatefulWidget {
 }
 
 class _HgLoadingState extends State<HgLoading>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _controller;
+  bool _visible = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1250),
-    )..repeat();
+    );
+    _syncAnimation();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _visible = TickerMode.of(context);
+    _syncAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant HgLoading oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncAnimation();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _visible = state == AppLifecycleState.resumed;
+    if (mounted) _syncAnimation();
+  }
+
+  void _syncAnimation() {
+    if (_visible) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else if (_controller.isAnimating) {
+      _controller.stop();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
@@ -775,59 +822,61 @@ class _HgLoadingState extends State<HgLoading>
             final width = constraints.maxWidth;
             final compact = width < 640;
             if (widget.variant == HgLoadingVariant.list) {
-              return Padding(
-                padding: EdgeInsets.fromLTRB(
-                  compact ? 16 : 24,
-                  16,
-                  compact ? 16 : 24,
-                  30,
-                ),
-                child: Column(
-                  children: List.generate(
-                    6,
-                    (index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        children: [
-                          _bone(
-                            context,
-                            progress: progress,
-                            width: compact ? 76 : 92,
-                            height: compact ? 98 : 112,
-                            radius: 18,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _bone(
-                                  context,
-                                  progress: progress,
-                                  width: width * (index.isEven ? 0.42 : 0.52),
-                                  height: 16,
-                                  radius: 8,
-                                ),
-                                const SizedBox(height: 10),
-                                _bone(
-                                  context,
-                                  progress: progress,
-                                  width: width * 0.3,
-                                  height: 11,
-                                  radius: 6,
-                                ),
-                                const SizedBox(height: 18),
-                                _bone(
-                                  context,
-                                  progress: progress,
-                                  width: width * 0.34,
-                                  height: 10,
-                                  radius: 6,
-                                ),
-                              ],
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 16 : 24,
+                    16,
+                    compact ? 16 : 24,
+                    30,
+                  ),
+                  child: Column(
+                    children: List.generate(
+                      6,
+                      (index) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          children: [
+                            _bone(
+                              context,
+                              progress: progress,
+                              width: compact ? 76 : 92,
+                              height: compact ? 98 : 112,
+                              radius: 18,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _bone(
+                                    context,
+                                    progress: progress,
+                                    width: width * (index.isEven ? 0.42 : 0.52),
+                                    height: 16,
+                                    radius: 8,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _bone(
+                                    context,
+                                    progress: progress,
+                                    width: width * 0.3,
+                                    height: 11,
+                                    radius: 6,
+                                  ),
+                                  const SizedBox(height: 18),
+                                  _bone(
+                                    context,
+                                    progress: progress,
+                                    width: width * 0.34,
+                                    height: 10,
+                                    radius: 6,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -835,53 +884,55 @@ class _HgLoadingState extends State<HgLoading>
               );
             }
             final columns = width >= 1000 ? 4 : 2;
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                compact ? 16 : 24,
-                16,
-                compact ? 16 : 24,
-                30,
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      _bone(
+            return SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 16 : 24,
+                  16,
+                  compact ? 16 : 24,
+                  30,
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        _bone(
+                          context,
+                          progress: progress,
+                          width: compact ? 104 : 132,
+                          height: 26,
+                          radius: 9,
+                        ),
+                        const Spacer(),
+                        _bone(
+                          context,
+                          progress: progress,
+                          width: 52,
+                          height: 14,
+                          radius: 7,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: compact ? 11 : 15,
+                        mainAxisSpacing: compact ? 14 : 18,
+                        childAspectRatio: 0.68,
+                      ),
+                      itemCount: columns == 2 ? 4 : 8,
+                      itemBuilder: (context, index) => _bone(
                         context,
                         progress: progress,
-                        width: compact ? 104 : 132,
-                        height: 26,
-                        radius: 9,
+                        height: double.infinity,
+                        radius: 20,
                       ),
-                      const Spacer(),
-                      _bone(
-                        context,
-                        progress: progress,
-                        width: 52,
-                        height: 14,
-                        radius: 7,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: compact ? 11 : 15,
-                      mainAxisSpacing: compact ? 14 : 18,
-                      childAspectRatio: 0.68,
                     ),
-                    itemCount: columns == 2 ? 4 : 8,
-                    itemBuilder: (context, index) => _bone(
-                      context,
-                      progress: progress,
-                      height: double.infinity,
-                      radius: 20,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },

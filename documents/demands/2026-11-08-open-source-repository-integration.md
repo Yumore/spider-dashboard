@@ -1,6 +1,6 @@
-# 开源内容工程能力集成记录（更新至 2026-11-18）
+# 开源内容工程能力集成记录（更新至 2026-11-24）
 
-更新日期：2026-11-18（初次记录：2026-11-08）
+更新日期：2026-11-24（初次记录：2026-11-08）
 
 ## 2026-11-17 DearLicy/guomu 果幕客户端完整集成
 
@@ -21,6 +21,14 @@
 - superxyline/purelive：从 `49de6d04bb90d1df1b1015ac342c7104a768062f` 更新到 `acde546b1bd52ee8a3824268fbc8c4f6ee584cb`，只更新 `nas/server/src/sites/douyin.ts` 的分块 JSON 响应解析；未引入上游提交中的 `node_modules` 或构建产物。
 - 其他已迁入来源核对：Kazumi-WebDAV、Hongguo、Zhenguo、Cuipi TV、Wenku8、PicaComic 与 Windows WebView 的上游对比基线当前无新提交。VioClass 在集成提交后多 4 个提交，但差异在其 Twitch 实时直播/DVR 发现与恢复；宿主仅迁入的公开 VOD/Clip 子集未对应变更，故未移植其未集成模块。
 - 本轮未运行测试、Dart 分析、Gradle 编译、APK/桌面打包或设备验证；只做上游版本/路径核对、静态变更审查和格式/结构检查。各历史集成验证结果仍保留在下文原记录，不代表本轮重新验证。
+
+## 2026-11-24 已集成上游逻辑刷新
+
+- DearLicy/guomu：从 `3b00a52d712b82e674cbad405aa537370bf01bab` 更新至 `fb060c44b32e0f13c223db1455eec6c41050b02b`，包版本 `1.4.6+11` → `1.4.31+37`。迁入源路由、播放器、设置及客户端更新逻辑；Android 宿主新增缓存目录限制、包名/签名校验、未知来源授权恢复和 FileProvider 安装桥。iOS 宿主新增 Live Activity 可用性检查与已解密封面写入；使用 Dashboard 的 App Group `group.com.nsapp.dashboard.guomu`，保留页面级音频会话恢复。PointyCastle 与 Workmanager 继续使用 Dashboard 已解析的兼容版本。
+- ch6vip/novel-sound：从 `18161a89d5436c3004c453d2428cfd110c527b4e` 更新至 `c5f252e392ee31bf15a1f4d95b773467e1f1dc66`；包版本仍为 `1.0.205+210`。迁入桌面/iOS 媒体支持、播放保护、阅读与同步改进、Rust 签名/网络逻辑及隐私安全的 Android 媒体错误诊断。iOS Runner 接入 Keychain 安全密钥、番茄官方登录 Cookie 导入、文件分享导出、系统朗读和锁屏媒体会话；统一远程命令路由，Novel Sound 拥有会话时优先，Guomu 仍使用原频道。
+- superxyline/purelive：当前 `custom` 提交 `5296995c806c1149a0c0551295e490550b45b42c` 的现有 `nas/` 集成文件与本地副本逐文件一致；补入云服务器部署指南、飞牛 FPK 包装源和 Windows 便携包脚本，并把维护者本机绝对工具路径改成环境变量/PATH 查找、修复 FPK runtime 目录创建。旧基线 `acde546...` 已无法从上游解析，因此本次以当前树的逐文件比对确认内容。
+- 其他已迁入来源复核：PureLive、SimpleLive、Kazumi-WebDAV、Hongguo、Zhenguo、Cuipi TV 与 PicaComic 均未见已集成路径的上游更新；VioClass 新增部分仍限于未集成的 Twitch 实时直播 DVR。
+- 本轮执行源文件与配置静态复核、Dart 格式检查、离线依赖解析和差异检查；未运行测试、APK/桌面打包或设备 UI 验收。
 
 ## 范围与决策
 

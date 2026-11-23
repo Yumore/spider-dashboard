@@ -20,8 +20,11 @@ class HgDownloadManager extends ChangeNotifier {
   final HgApi _api;
   final SharedPreferences _prefs;
   final List<HgDownloadTask> _tasks = [];
+  final Set<int> _queuedVideoIds = <int>{};
   Future<void> _queue = Future<void>.value();
   bool _restored = false;
+  Future<void>? _restoring;
+  bool _resuming = false;
 
   Future<void> Function(HgDownloadTask task, int newEpisode)? onUpdateFound;
   Future<void> Function(HgDownloadTask task)? onDownloadCompleted;
@@ -41,10 +44,17 @@ class HgDownloadManager extends ChangeNotifier {
     return taskFor(videoId)?.episodes.containsKey(episode) ?? false;
   }
 
-  Future<void> restore() async {
-    if (_restored) return;
-    _restored = true;
+  Future<void> restore() {
+    if (_restored) return Future<void>.value();
+    return _restoring ??= _restore();
+  }
+
+  Future<void> _restore() async {
+    // localPlaylist may be called from a player's initState. Notify only after
+    // that build has finished, and let concurrent callers await the same load.
+    await Future<void>.value();
     final restored = HgDownloadTask.decodeList(_prefs.getString(_storageKey));
+    final interrupted = <HgDownloadTask>[];
     for (final task in restored) {
       final episodes = <int, HgDownloadedEpisode>{};
       for (final episode in task.episodes.values) {
@@ -52,9 +62,54 @@ class HgDownloadManager extends ChangeNotifier {
           episodes[episode.number] = episode;
         }
       }
-      _tasks.add(task.copyWith(episodes: episodes));
+      var normalized = task.copyWith(
+        episodes: episodes,
+        speedBytesPerSecond: 0,
+      );
+      if (normalized.isDownloading) {
+        normalized = normalized.copyWith(state: '等待恢复');
+        interrupted.add(normalized);
+      }
+      _tasks.add(normalized);
     }
+    _restored = true;
     notifyListeners();
+    if (interrupted.isNotEmpty) {
+      unawaited(_resumeInterrupted(interrupted));
+    }
+  }
+
+  Future<void> _resumeInterrupted(List<HgDownloadTask> interrupted) async {
+    if (_resuming) return;
+    _resuming = true;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      for (final task in interrupted) {
+        if (taskFor(task.videoId) == null) continue;
+        try {
+          final detail = await _api.video(task.videoId);
+          await startDramaDownload(
+            detail,
+            autoUpdate: task.autoUpdate,
+            downloadNow: true,
+          );
+        } catch (error) {
+          final current = taskFor(task.videoId);
+          if (current != null) {
+            _upsert(
+              current.copyWith(
+                state: '已暂停',
+                speedBytesPerSecond: 0,
+                lastError: error.toString(),
+                updatedAt: DateTime.now().toIso8601String(),
+              ),
+            );
+          }
+        }
+      }
+    } finally {
+      _resuming = false;
+    }
   }
 
   Future<void> startDramaDownload(
@@ -63,8 +118,9 @@ class HgDownloadManager extends ChangeNotifier {
     bool downloadNow = true,
   }) async {
     await restore();
-    final shouldAutoUpdate = autoUpdate ?? autoUpdateDefault;
     final existing = taskFor(detail.id);
+    final shouldAutoUpdate =
+        autoUpdate ?? existing?.autoUpdate ?? autoUpdateDefault;
     final initial =
         existing ??
         HgDownloadTask(
@@ -84,7 +140,11 @@ class HgDownloadManager extends ChangeNotifier {
       totalEpisodes: _episodeCount(detail),
       autoUpdate: shouldAutoUpdate,
       tracking: true,
-      state: downloadNow ? '下载中' : '追更中',
+      state: downloadNow ? '排队中' : '追更中',
+      progress: initial.episodes.length / _episodeCount(detail).clamp(1, 99999),
+      receivedBytes: initial.downloadedBytes,
+      totalBytes: initial.downloadedBytes,
+      speedBytesPerSecond: 0,
       lastError: '',
       lastKnownEpisode: _episodeCount(detail),
       updatedAt: DateTime.now().toIso8601String(),
@@ -92,8 +152,20 @@ class HgDownloadManager extends ChangeNotifier {
     _upsert(task);
     await _persist();
     if (downloadNow) {
-      _enqueue(() => _downloadAll(detail));
+      _enqueueDownload(detail);
     }
+  }
+
+  Future<void> resumeDownload(int videoId) async {
+    await restore();
+    final task = taskFor(videoId);
+    if (task == null) return;
+    final detail = await _api.video(videoId);
+    await startDramaDownload(
+      detail,
+      autoUpdate: task.autoUpdate,
+      downloadNow: true,
+    );
   }
 
   Future<void> setAutoUpdate(int videoId, bool value) async {
@@ -186,13 +258,25 @@ class HgDownloadManager extends ChangeNotifier {
     final directory = await _dramaDirectory(detail.id);
     var completed = task.episodes;
     for (final episode in episodes) {
+      if (taskFor(detail.id) == null) return;
       if (taskFor(detail.id)?.episodes.containsKey(episode.number) ?? false) {
         continue;
       }
+      final episodeDir = Directory('${directory.path}/${episode.number}');
+      if (await episodeDir.exists()) {
+        await episodeDir.delete(recursive: true);
+      }
+      final completedBytes = completed.values.fold<int>(
+        0,
+        (sum, item) => sum + item.bytes,
+      );
       _upsert(
         taskFor(detail.id)!.copyWith(
-          state: '下载中',
+          state: '下载中 · 第 ${episode.number}/${episodes.length} 集',
           lastError: '',
+          receivedBytes: completedBytes,
+          totalBytes: completedBytes,
+          speedBytesPerSecond: 0,
           progress: completed.length / episodes.length.clamp(1, 99999),
           updatedAt: DateTime.now().toIso8601String(),
         ),
@@ -204,33 +288,84 @@ class HgDownloadManager extends ChangeNotifier {
           if (info.cdnAuthKey.isNotEmpty) info.cdnAuthKey: info.cdnAuthValue,
           if (info.cdnApp.isNotEmpty) 'x-cdn-app': info.cdnApp,
         };
-        final episodeDir = Directory('${directory.path}/${episode.number}');
-        final stopwatch = Stopwatch()..start();
-        var lastBytes = 0;
-        final downloaded = await HgHlsDownloader.download(
-          dio: Dio(),
-          playlistUrl: info.videoUrl,
-          directory: episodeDir,
-          headers: mediaHeaders,
-          onProgress: (bytes, _) {
-            final current = taskFor(detail.id);
-            if (current == null) return;
-            final elapsed = stopwatch.elapsedMilliseconds.clamp(1, 60000);
-            final speed = ((bytes - lastBytes) * 1000 / elapsed).round();
-            lastBytes = bytes;
-            _upsert(
-              current.copyWith(
-                state: '下载中',
-                receivedBytes: current.downloadedBytes + bytes,
-                totalBytes: current.downloadedBytes + bytes,
-                speedBytesPerSecond: speed,
-                progress:
-                    (completed.length + 0.45) / episodes.length.clamp(1, 99999),
-                updatedAt: DateTime.now().toIso8601String(),
-              ),
-            );
-          },
-        );
+        final dio = Dio();
+        final preferHevc =
+            !kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.iOS ||
+                defaultTargetPlatform == TargetPlatform.macOS) &&
+            info.hevcUrl.isNotEmpty;
+        var lastSpeedBytes = 0;
+        var lastSpeedAt = DateTime.now();
+        var lastUiAt = DateTime.fromMillisecondsSinceEpoch(0);
+        var lastPersistAt = DateTime.now();
+        var speed = 0;
+
+        void onProgress(HgDownloadProgressSnapshot progress) {
+          final now = DateTime.now();
+          final speedElapsed = now.difference(lastSpeedAt).inMilliseconds;
+          if (speedElapsed >= 500) {
+            final delta = progress.receivedBytes - lastSpeedBytes;
+            speed = delta <= 0 ? 0 : (delta * 1000 / speedElapsed).round();
+            lastSpeedBytes = progress.receivedBytes;
+            lastSpeedAt = now;
+          }
+          final uiElapsed = now.difference(lastUiAt).inMilliseconds;
+          if (uiElapsed < 220 &&
+              progress.completedSegments < progress.totalSegments) {
+            return;
+          }
+          lastUiAt = now;
+          final current = taskFor(detail.id);
+          if (current == null) return;
+          final episodeFraction = progress.fraction;
+          _upsert(
+            current.copyWith(
+              state: '下载中 · 第 ${episode.number}/${episodes.length} 集',
+              receivedBytes: completedBytes + progress.receivedBytes,
+              totalBytes: completedBytes + progress.totalBytes,
+              speedBytesPerSecond: speed,
+              progress:
+                  (completed.length + episodeFraction) /
+                  episodes.length.clamp(1, 99999),
+              updatedAt: now.toIso8601String(),
+            ),
+          );
+          if (now.difference(lastPersistAt).inSeconds >= 5) {
+            lastPersistAt = now;
+            unawaited(_persist());
+          }
+        }
+
+        late final HgDownloadedPlaylist downloaded;
+        try {
+          downloaded = await HgHlsDownloader.download(
+            dio: dio,
+            playlistUrl: preferHevc ? info.hevcUrl : info.videoUrl,
+            directory: episodeDir,
+            headers: mediaHeaders,
+            onProgress: onProgress,
+          );
+        } catch (_) {
+          if (!preferHevc) rethrow;
+          if (await episodeDir.exists()) {
+            await episodeDir.delete(recursive: true);
+          }
+          downloaded = await HgHlsDownloader.download(
+            dio: dio,
+            playlistUrl: info.videoUrl,
+            directory: episodeDir,
+            headers: mediaHeaders,
+            onProgress: onProgress,
+          );
+        } finally {
+          dio.close(force: true);
+        }
+        if (taskFor(detail.id) == null) {
+          if (await episodeDir.exists()) {
+            await episodeDir.delete(recursive: true);
+          }
+          return;
+        }
         completed = {
           ...completed,
           episode.number: HgDownloadedEpisode(
@@ -241,29 +376,44 @@ class HgDownloadManager extends ChangeNotifier {
             updatedAt: DateTime.now().toIso8601String(),
           ),
         };
+        final completedTotal = completed.values.fold<int>(
+          0,
+          (sum, item) => sum + item.bytes,
+        );
         _upsert(
           taskFor(detail.id)!.copyWith(
             episodes: completed,
             progress: completed.length / episodes.length.clamp(1, 99999),
             state: completed.length >= episodes.length ? '已缓存' : '下载中',
+            receivedBytes: completedTotal,
+            totalBytes: completedTotal,
             speedBytesPerSecond: 0,
             updatedAt: DateTime.now().toIso8601String(),
           ),
         );
         await _persist();
       } catch (error) {
+        if (await episodeDir.exists()) {
+          await episodeDir.delete(recursive: true);
+        }
         final current = taskFor(detail.id);
         if (current != null) {
           _upsert(
             current.copyWith(
-              state: '部分缓存',
+              state: '已暂停',
               lastError: error.toString(),
-              receivedBytes: current.downloadedBytes,
+              receivedBytes: completed.values.fold<int>(
+                0,
+                (sum, item) => sum + item.bytes,
+              ),
+              totalBytes: 0,
               speedBytesPerSecond: 0,
               updatedAt: DateTime.now().toIso8601String(),
             ),
           );
         }
+        await _persist();
+        break;
       }
     }
     final current = taskFor(detail.id);
@@ -271,7 +421,11 @@ class HgDownloadManager extends ChangeNotifier {
       final finished = current.copyWith(
         totalEpisodes: episodes.length,
         progress: completed.length / episodes.length.clamp(1, 99999),
-        state: completed.length >= episodes.length ? '已缓存' : '部分缓存',
+        state: current.state == '已暂停'
+            ? '已暂停'
+            : completed.length >= episodes.length
+            ? '已缓存'
+            : '部分缓存',
         speedBytesPerSecond: 0,
         updatedAt: DateTime.now().toIso8601String(),
       );
@@ -279,6 +433,17 @@ class HgDownloadManager extends ChangeNotifier {
       await _persist();
       if (finished.isComplete) await onDownloadCompleted?.call(finished);
     }
+  }
+
+  void _enqueueDownload(HgVideoDetail detail) {
+    if (!_queuedVideoIds.add(detail.id)) return;
+    _enqueue(() async {
+      try {
+        await _downloadAll(detail);
+      } finally {
+        _queuedVideoIds.remove(detail.id);
+      }
+    });
   }
 
   void _enqueue(Future<void> Function() action) {

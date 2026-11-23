@@ -554,16 +554,30 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   Future<void> _toggleLike() async {
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.lightImpact();
     final next = !_liked;
-    setState(() {
-      _liked = next;
-      _likeCount = math.max(0, _likeCount + (next ? 1 : -1));
-    });
+    var hapticSent = false;
     try {
-      await context.read<HgApi>().likePost(widget.postId, next);
+      final updated = await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        if (!hapticSent) {
+          HapticFeedback.lightImpact();
+          hapticSent = true;
+        }
+        if (_liked != next) {
+          setState(() {
+            _liked = next;
+            _likeCount = math.max(0, _likeCount + (next ? 1 : -1));
+          });
+        }
+        await context.read<HgApi>().likePost(widget.postId, next);
+        return true;
+      });
+      if (updated != true && mounted) {
+        setState(() {
+          _liked = !next;
+          _likeCount = math.max(0, _likeCount + (next ? -1 : 1));
+        });
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -575,16 +589,30 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   Future<void> _toggleCollect() async {
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.mediumImpact();
     final next = !_collected;
-    setState(() {
-      _collected = next;
-      _collectCount = math.max(0, _collectCount + (next ? 1 : -1));
-    });
+    var hapticSent = false;
     try {
-      await context.read<HgApi>().collectPost(widget.postId, next);
+      final updated = await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        if (!hapticSent) {
+          HapticFeedback.mediumImpact();
+          hapticSent = true;
+        }
+        if (_collected != next) {
+          setState(() {
+            _collected = next;
+            _collectCount = math.max(0, _collectCount + (next ? 1 : -1));
+          });
+        }
+        await context.read<HgApi>().collectPost(widget.postId, next);
+        return true;
+      });
+      if (updated != true && mounted) {
+        setState(() {
+          _collected = !next;
+          _collectCount = math.max(0, _collectCount + (next ? -1 : 1));
+        });
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -1370,12 +1398,14 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty || _sending) return;
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    setState(() => _sending = true);
     try {
-      await context.read<HgApi>().sendPostComment(widget.postId, text);
-      if (!mounted) return;
+      final sent = await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        setState(() => _sending = true);
+        await context.read<HgApi>().sendPostComment(widget.postId, text);
+        return true;
+      });
+      if (sent != true || !mounted) return;
       _input.clear();
       FocusScope.of(context).unfocus();
       await _load();
@@ -1387,21 +1417,24 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
   }
 
   Future<void> _toggleLike(HgComment comment) async {
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
     final next = !comment.isLiked;
-    _replace(
-      comment.copyWith(
-        isLiked: next,
-        likeCount: math.max(0, comment.likeCount + (next ? 1 : -1)),
-      ),
-    );
     try {
-      await context.read<HgApi>().likePostComment(
-        widget.postId,
-        comment.id,
-        next,
-      );
+      final updated = await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        _replace(
+          comment.copyWith(
+            isLiked: next,
+            likeCount: math.max(0, comment.likeCount + (next ? 1 : -1)),
+          ),
+        );
+        await context.read<HgApi>().likePostComment(
+          widget.postId,
+          comment.id,
+          next,
+        );
+        return true;
+      });
+      if (updated != true && mounted) _replace(comment);
     } catch (error) {
       if (!mounted) return;
       _replace(comment);
@@ -1443,16 +1476,6 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
                       color: context.hgOnSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Positioned(
-                    left: 10,
-                    child: IconButton(
-                      onPressed: () => Navigator.maybePop(context),
-                      icon: const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 29,
-                      ),
                     ),
                   ),
                 ],

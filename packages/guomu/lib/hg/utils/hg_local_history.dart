@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/hg_models.dart';
@@ -12,6 +13,11 @@ abstract final class HgLocalHistory {
 
   // 播放器会周期性保存进度，串行化写入避免旧进度覆盖新进度。
   static Future<void> _writeTail = Future<void>.value();
+
+  @visibleForTesting
+  static void resetQueueForTesting() {
+    _writeTail = Future<void>.value();
+  }
 
   static Future<List<HgPlaylistItem>> load() async {
     await _writeTail.catchError((Object _) {});

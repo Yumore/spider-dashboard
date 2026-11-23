@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../api/hg_api.dart';
+import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import 'hg_cover_crypto.dart' as cover_crypto;
 
@@ -22,6 +23,13 @@ class HgCoverRepository {
   static final HgCoverRepository instance = HgCoverRepository._();
   static const int _cacheLimit = 160;
   static const int _maxConcurrent = 6;
+  static const List<String> _fallbackOrigins = [
+    kHgImageOrigin,
+    'https://new2.qnlycc.cn',
+    'https://new.qnlycc.cn',
+    'https://image.qnlycc.cn',
+  ];
+  static const Set<String> _legacyHosts = {'pic.drleao.cn', 'drleao.cn'};
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -72,10 +80,12 @@ class HgCoverRepository {
     await _acquireSlot();
     try {
       Object? lastError;
+      final candidates = _candidateUrls(url);
       for (var attempt = 0; attempt < 3; attempt++) {
+        final candidate = candidates[attempt % candidates.length];
         try {
           final response = await _dio.get<List<int>>(
-            url,
+            candidate,
             options: Options(
               validateStatus: (status) =>
                   status != null && status >= 200 && status < 300,
@@ -101,6 +111,22 @@ class HgCoverRepository {
     } finally {
       _releaseSlot();
     }
+  }
+
+  List<String> _candidateUrls(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return [url];
+    final host = uri.host.toLowerCase();
+    final knownHosts = _fallbackOrigins
+        .map((origin) => Uri.parse(origin).host)
+        .toSet();
+    if (!knownHosts.contains(host) && !_legacyHosts.contains(host)) {
+      return [url];
+    }
+    return [
+      for (final origin in _fallbackOrigins)
+        Uri.parse(origin).replace(path: uri.path, query: uri.query).toString(),
+    ];
   }
 
   Future<void> _acquireSlot() async {
@@ -135,6 +161,7 @@ class HgCoverImage extends StatelessWidget {
     this.height,
     this.title = '',
     this.borderRadius = BorderRadius.zero,
+    this.heroTag,
   });
 
   final String url;
@@ -143,6 +170,7 @@ class HgCoverImage extends StatelessWidget {
   final double? height;
   final String title;
   final BorderRadius borderRadius;
+  final Object? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -188,8 +216,12 @@ class HgCoverImage extends StatelessWidget {
               },
             ),
     );
-    if (borderRadius == BorderRadius.zero) return child;
-    return ClipRRect(borderRadius: borderRadius, child: child);
+    final clipped = borderRadius == BorderRadius.zero
+        ? child
+        : ClipRRect(borderRadius: borderRadius, child: child);
+    final tag = heroTag;
+    if (tag == null || MediaQuery.disableAnimationsOf(context)) return clipped;
+    return Hero(tag: tag, child: clipped);
   }
 }
 
@@ -272,42 +304,49 @@ class _CoverPlaceholder extends StatelessWidget {
           colors: error ? colors.reversed.toList() : colors,
         ),
       ),
-      child: Center(
-        child: loading
-            ? Icon(
-                Icons.movie_filter_outlined,
-                color: (dark ? Colors.white : HgColors.ink).withValues(
-                  alpha: 0.24,
-                ),
-                size: 28,
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.movie_filter_rounded,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact =
+              constraints.maxWidth < 76 || constraints.maxHeight < 96;
+          final iconSize = constraints.biggest.shortestSide.clamp(12.0, 30.0);
+          return Center(
+            child: loading
+                ? Icon(
+                    Icons.movie_filter_outlined,
                     color: (dark ? Colors.white : HgColors.ink).withValues(
-                      alpha: 0.42,
+                      alpha: 0.24,
                     ),
-                    size: 30,
-                  ),
-                  if (title.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                      child: Text(
-                        title,
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: (dark ? Colors.white : HgColors.ink)
-                              .withValues(alpha: 0.58),
-                          fontSize: 11,
+                    size: iconSize,
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.movie_filter_rounded,
+                        color: (dark ? Colors.white : HgColors.ink).withValues(
+                          alpha: 0.42,
                         ),
+                        size: iconSize,
                       ),
-                    ),
-                ],
-              ),
+                      if (title.isNotEmpty && !compact)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                          child: Text(
+                            title,
+                            maxLines: 2,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: (dark ? Colors.white : HgColors.ink)
+                                  .withValues(alpha: 0.58),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          );
+        },
       ),
     );
   }
